@@ -38,7 +38,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true });
       }
 
-      const remoteJid = msg.key.remoteJid;
+      let rawRemoteJid = msg.key.remoteJid;
+      // Se for @lid (Local ID) de contas business, a Evolution manda o número real em senderPn
+      if (rawRemoteJid && rawRemoteJid.includes('@lid') && msg.key.senderPn) {
+        rawRemoteJid = msg.key.senderPn;
+      }
+      
+      const remoteJid = rawRemoteJid;
       const phone = remoteJid.split('@')[0];
       const fromMe = msg.key.fromMe;
       const messageId = msg.key.id;
@@ -50,13 +56,13 @@ export async function POST(request: Request) {
                       msg.message?.imageMessage?.caption;
                       
       if (!content && msg.message?.audioMessage) {
-        // base64 pode vir em: msg.message.base64, msg.base64, ou data.base64
-        // A Evolution V2 com webhookBase64=true adiciona em msg.message.base64 ou como campo extra
+        // base64 pode vir em: msg.message.base64, msg.base64, data.base64, ou body.base64
         const base64Data = 
-          msg.message?.audioMessage?.jpegThumbnail || // Às vezes manda aqui
+          msg.message?.audioMessage?.jpegThumbnail || 
           msg.message?.base64 || 
           msg.base64 || 
-          data?.base64;
+          data?.base64 ||
+          body?.base64;
         
         if (base64Data) {
           content = `[AUDIO] data:audio/ogg;base64,${base64Data}`;
