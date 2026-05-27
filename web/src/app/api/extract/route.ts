@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       while (true) {
         if (processedCount >= TARGET_LEADS || apiCalls >= MAX_API_CALLS) break;
 
-        const apiResponse = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        const apiResponse: any = await fetch('https://places.googleapis.com/v1/places:searchText', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
