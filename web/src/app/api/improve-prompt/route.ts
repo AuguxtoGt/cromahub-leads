@@ -10,14 +10,14 @@ export async function POST(req: Request) {
     // O meta-prompt: uma IA que melhora o prompt de outra IA baseada em feedback humano
     const metaPrompt = `Você é um especialista em prompt engineering para vendas. 
     
-Sua tarefa é melhorar um "system prompt" de um agente de vendas baseado no feedback do usuário.
+Sua tarefa é reescrever o "system prompt" de um agente de vendas de forma agressiva para que ele obedeça EXATAMENTE ao feedback do usuário.
 
 REGRAS IMPORTANTES:
-- Mantenha a estrutura e as boas partes do prompt original
-- Incorpore o feedback do usuário como novas regras ou ajustes
-- O prompt melhorado deve ser direto e acionável
-- Não remova informações sobre preço, prazo e produto a menos que o feedback peça isso
-- Retorne APENAS o prompt melhorado, sem explicações, sem prefixos, sem aspas`;
+1. Mantenha a essência do prompt original, mas ALTERE as instruções que entram em conflito com o feedback.
+2. Incorpore o feedback do usuário como uma regra ESTRITA e INEGOCIÁVEL (em MAIÚSCULAS) no final do prompt.
+3. Se o usuário pedir para a mensagem ser "mais curta", "menor", "direta", adicione uma regra de limite estrito (ex: "MÁXIMO DE 2 FRASES CURTAS" ou "NUNCA PASSE DE 3 LINHAS").
+4. Se o usuário quiser remover preço ou prazo, adicione uma regra dizendo "NÃO MENCIONE PREÇO NEM PRAZO".
+5. Retorne APENAS o prompt melhorado, sem explicações, sem aspas.`;
 
     const userMessage = `PROMPT ATUAL DO AGENTE:
 ---

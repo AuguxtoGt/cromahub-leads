@@ -6,15 +6,15 @@ export async function POST(req: Request) {
   try {
     const { system_prompt, lead_name, offer_price, offer_deadline } = await req.json();
 
-    const userPrompt = `
-Gere uma mensagem de prospecção para esta empresa:
+    const userPrompt = `DADOS DO LEAD:
 - Nome da empresa: ${lead_name}
+
+DADOS DA OFERTA (use essas informações caso o seu system prompt instrua, caso contrário ignore):
 - Produto sendo ofertado: Landing Page profissional
 - Preço: R$${offer_price}
 - Prazo de entrega: ${offer_deadline}
 
-Use o nome da empresa na mensagem de forma personalizada.
-Escreva APENAS a mensagem final, sem aspas, sem introdução.`;
+Siga RIGOROSAMENTE as regras e restrições do seu System Prompt, especialmente sobre limite de tamanho, tom de voz e o que NÃO mencionar. Escreva APENAS a mensagem final, sem introdução.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

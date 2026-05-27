@@ -42,14 +42,16 @@ export async function POST(req: Request) {
     const systemPrompt = basePrompt + examplesBlock;
 
     // Gerar mensagem com OpenAI usando o prompt customizado
-    const userPrompt = `Gere uma mensagem de prospecção para esta empresa:
+    const userPrompt = `DADOS DO LEAD:
 - Nome: ${lead.name}
 - Endereço: ${lead.formatted_address || 'Belo Horizonte'}
+
+DADOS DA OFERTA (use essas informações caso o seu system prompt instrua, caso contrário ignore):
 - Produto: Landing Page profissional
 - Preço: R$${offerPrice}
 - Prazo: ${offerDeadline}
 
-Use {{nome_empresa}} substituído por "${lead.name}". Escreva APENAS a mensagem final.`;
+Siga RIGOROSAMENTE as regras e restrições do seu System Prompt, especialmente sobre limite de tamanho, tom de voz e o que NÃO mencionar. Escreva APENAS a mensagem final.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
