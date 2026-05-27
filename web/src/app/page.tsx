@@ -3,13 +3,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, Plus } from "lucide-react";
 
 export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [leads, setLeads] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingLeadId, setLoadingLeadId] = useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newLeadData, setNewLeadData] = useState({ name: '', phone: '' });
+  const [isSavingLead, setIsSavingLead] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -76,6 +79,42 @@ export default function LeadsPage() {
     }
   };
 
+  // Salvar lead manual
+  const handleSaveManualLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLeadData.name || !newLeadData.phone) return;
+    
+    // Limpa o número para deixar apenas números
+    const cleanPhone = newLeadData.phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      alert("Por favor, digite um número válido com DDD.");
+      return;
+    }
+
+    try {
+      setIsSavingLead(true);
+      const { data, error } = await supabase
+        .from('leads')
+        .insert({
+          name: newLeadData.name,
+          phone: cleanPhone,
+          status_pipeline: 'NEW'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setLeads(prev => [data, ...prev]);
+      setIsAddModalOpen(false);
+      setNewLeadData({ name: '', phone: '' });
+    } catch (err: any) {
+      alert('Erro ao salvar lead: ' + err.message);
+    } finally {
+      setIsSavingLead(false);
+    }
+  };
+
   const getPipelineStatus = (lead: any) => {
     switch (lead.status_pipeline) {
       case 'READY':   return { label: 'Msg Pronta', color: 'bg-purple-50 text-purple-600 border-purple-200' };
@@ -101,6 +140,13 @@ export default function LeadsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">Leads</h1>
         <div className="flex gap-3">
+          <button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Lead Manual
+          </button>
           <button 
             onClick={fetchLeads}
             className="px-4 py-2 border border-border bg-sidebar rounded-md text-sm font-medium hover:bg-muted transition-colors"
@@ -286,6 +332,59 @@ export default function LeadsPage() {
         onClose={() => setSelectedLead(null)} 
         lead={selectedLead} 
       />
+
+      {/* Modal de Adicionar Lead Manual */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-4 border-b border-border font-semibold flex justify-between items-center">
+              <span>Cadastrar Lead de Teste</span>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+            <form onSubmit={handleSaveManualLead} className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Nome do Contato</label>
+                <input 
+                  type="text" 
+                  value={newLeadData.name}
+                  onChange={e => setNewLeadData(prev => ({...prev, name: e.target.value}))}
+                  placeholder="Ex: João da Silva" 
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm outline-none focus:border-primary"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">WhatsApp (com DDD)</label>
+                <input 
+                  type="text" 
+                  value={newLeadData.phone}
+                  onChange={e => setNewLeadData(prev => ({...prev, phone: e.target.value}))}
+                  placeholder="Ex: 11999999999" 
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm outline-none focus:border-primary"
+                  required
+                />
+              </div>
+              <div className="pt-2 flex justify-end gap-2">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2 border border-border rounded-md text-sm font-medium hover:bg-muted"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isSavingLead}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-70 flex items-center gap-2"
+                >
+                  {isSavingLead ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Salvar Lead
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
