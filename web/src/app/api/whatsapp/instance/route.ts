@@ -6,8 +6,8 @@ const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || 'cromahub';
 
 export async function POST() {
   try {
-    // 1. Tentar criar a instância (se já existir ele retorna erro, mas tudo bem)
-    await fetch(`${EVOLUTION_API_URL}/instance/create`, {
+    // 1. Tentar criar a instância
+    const createRes = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -20,26 +20,60 @@ export async function POST() {
       })
     });
 
-    // 2. Conectar na instância e pegar o QR Code em Base64
-    const response = await fetch(`${EVOLUTION_API_URL}/instance/connect/${INSTANCE_NAME}`, {
-      method: 'GET',
-      headers: {
-        'apikey': EVOLUTION_API_KEY
+    if (createRes.status === 403) {
+      // Instância já existe. Vamos verificar o status
+      const stateRes = await fetch(`${EVOLUTION_API_URL}/instance/connectionState/${INSTANCE_NAME}`, {
+        headers: { 'apikey': EVOLUTION_API_KEY }
+      });
+      const stateData = await stateRes.json();
+      
+      if (stateData?.instance?.state === 'open') {
+        return NextResponse.json({ connected: true });
       }
-    });
 
-    const data = await response.json();
-
-    if (data.base64) {
-      return NextResponse.json({ qrcode: data.base64 });
+      // Se tiver 'close', vamos deletar e recriar
+      if (stateData?.instance?.state === 'close') {
+        await fetch(`${EVOLUTION_API_URL}/instance/delete/${INSTANCE_NAME}`, {
+          method: 'DELETE',
+          headers: { 'apikey': EVOLUTION_API_KEY }
+        });
+        
+        // Tenta criar de novo
+        await fetch(`${EVOLUTION_API_URL}/instance/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': EVOLUTION_API_KEY
+          },
+          body: JSON.stringify({
+            instanceName: INSTANCE_NAME,
+            qrcode: true,
+            integration: "WHATSAPP-BAILEYS"
+          })
+        });
+      }
     }
 
-    // Se não tiver base64 na resposta, pode ser que já esteja conectado
-    if (data.instance?.state === 'open') {
-      return NextResponse.json({ connected: true });
+    // 2. Conectar e tentar pegar o QR Code com retentativas (pois demora uns segundos)
+    for (let i = 0; i < 5; i++) {
+      // Espera 1.5s
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const response = await fetch(`${EVOLUTION_API_URL}/instance/connect/${INSTANCE_NAME}`, {
+        method: 'GET',
+        headers: { 'apikey': EVOLUTION_API_KEY }
+      });
+      const data = await response.json();
+
+      if (data.base64) {
+        return NextResponse.json({ qrcode: data.base64 });
+      }
+      if (data.instance?.state === 'open') {
+        return NextResponse.json({ connected: true });
+      }
     }
 
-    return NextResponse.json({ error: 'Não foi possível gerar o QR Code' }, { status: 400 });
+    return NextResponse.json({ error: 'Timeout ao gerar QR Code. Tente novamente.' }, { status: 400 });
 
   } catch (error: any) {
     console.error('Evolution Instance Error:', error);
