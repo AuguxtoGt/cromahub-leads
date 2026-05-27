@@ -48,11 +48,11 @@ export async function POST(req: Request) {
       while (true) {
         if (processedCount >= TARGET_LEADS || apiCalls >= MAX_API_CALLS) break;
 
-        const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        const apiResponse = await fetch('https://places.googleapis.com/v1/places:searchText', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Goog-Api-Key': GOOGLE_API_KEY!,
+            'X-Goog-Api-Key': GOOGLE_API_KEY as string,
             'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.internationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.types,nextPageToken',
           },
           body: JSON.stringify({
@@ -62,12 +62,12 @@ export async function POST(req: Request) {
           })
         });
 
-        if (!response.ok) {
-          console.error('Google API Error:', await response.text());
+        if (!apiResponse.ok) {
+          console.error('Google API Error:', await apiResponse.text());
           break; // Pula para a próxima região se der erro
         }
 
-        const data = await response.json();
+        const data = await apiResponse.json();
         const places = data.places || [];
 
         // Processar e Salvar no Supabase
