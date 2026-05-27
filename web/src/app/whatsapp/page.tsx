@@ -36,9 +36,20 @@ export default function WhatsAppPage() {
 
   useEffect(() => {
     loadChats();
-    // Em uma versão real, também chamaremos a Evolution API para ver se a instância está conectada.
-    // Por enquanto, vamos simular que estamos conectados se tivermos chats.
-    setIsConnected(true);
+    
+    // Check if we are already connected
+    const checkConnection = async () => {
+      try {
+        const response = await fetch('/api/whatsapp/instance', { method: 'POST' });
+        const data = await response.json();
+        if (data.connected) {
+          setIsConnected(true);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    checkConnection();
 
     const chatSub = supabase
       .channel('public:whatsapp_chats')
