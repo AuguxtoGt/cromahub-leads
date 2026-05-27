@@ -14,7 +14,12 @@ DADOS DA OFERTA (use essas informações caso o seu system prompt instrua, caso 
 - Preço: R$${offer_price}
 - Prazo de entrega: ${offer_deadline}
 
-Siga RIGOROSAMENTE as regras e restrições do seu System Prompt, especialmente sobre limite de tamanho, tom de voz e o que NÃO mencionar. Escreva APENAS a mensagem final, sem introdução.`;
+Siga RIGOROSAMENTE as regras e restrições do seu System Prompt (especialmente sobre limite de tamanho e tom de voz).
+IMPORTANTE: Você deve retornar APENAS um objeto JSON com duas chaves exatas:
+{
+  "primeira_mensagem": "O texto da mensagem de prospecção",
+  "mensagem_follow_up": "A mensagem curta para o dia seguinte"
+}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -24,11 +29,12 @@ Siga RIGOROSAMENTE as regras e restrições do seu System Prompt, especialmente 
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
+        response_format: { type: "json_object" },
         messages: [
           { role: 'system', content: system_prompt },
           { role: 'user', content: userPrompt }
         ],
-        max_tokens: 350,
+        max_tokens: 500,
         temperature: 0.85,
       }),
     });
@@ -38,9 +44,19 @@ Siga RIGOROSAMENTE as regras e restrições do seu System Prompt, especialmente 
     }
 
     const data = await response.json();
-    const message = data.choices[0]?.message?.content?.trim();
+    const aiResponseContent = data.choices[0]?.message?.content?.trim();
+    
+    let parsedResponse = { primeira_mensagem: "Erro ao gerar", mensagem_follow_up: "" };
+    try {
+      parsedResponse = JSON.parse(aiResponseContent);
+    } catch (e) {
+      console.error('Failed to parse JSON preview:', aiResponseContent);
+    }
 
-    return NextResponse.json({ message });
+    return NextResponse.json({ 
+      message: parsedResponse.primeira_mensagem,
+      follow_up: parsedResponse.mensagem_follow_up
+    });
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

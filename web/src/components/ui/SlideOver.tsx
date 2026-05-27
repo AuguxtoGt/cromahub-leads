@@ -253,7 +253,7 @@ export function SlideOver({ isOpen, onClose, lead }: SlideOverProps) {
           {lead?.ai_message && (
             <div className="flex flex-col gap-4">
               <div className="border-b border-border pb-2">
-                <h4 className="font-semibold text-foreground">✨ Mensagem IA</h4>
+                <h4 className="font-semibold text-foreground">✨ Mensagem IA (1º Contato)</h4>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                 {lead.ai_message}
@@ -263,6 +263,24 @@ export function SlideOver({ isOpen, onClose, lead }: SlideOverProps) {
                 className="text-xs text-primary hover:underline text-left"
               >
                 📋 Copiar mensagem
+              </button>
+            </div>
+          )}
+
+          {/* Follow-up IA */}
+          {lead?.ai_follow_up && (
+            <div className="flex flex-col gap-4">
+              <div className="border-b border-border pb-2">
+                <h4 className="font-semibold text-foreground">✨ Follow-up (Dia Seguinte)</h4>
+              </div>
+              <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4 text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                {lead.ai_follow_up}
+              </div>
+              <button
+                onClick={() => copyToClipboard(lead.ai_follow_up, "Follow-up da IA")}
+                className="text-xs text-primary hover:underline text-left"
+              >
+                📋 Copiar follow-up
               </button>
             </div>
           )}

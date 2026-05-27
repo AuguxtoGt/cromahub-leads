@@ -51,7 +51,12 @@ DADOS DA OFERTA (use essas informações caso o seu system prompt instrua, caso 
 - Preço: R$${offerPrice}
 - Prazo: ${offerDeadline}
 
-Siga RIGOROSAMENTE as regras e restrições do seu System Prompt, especialmente sobre limite de tamanho, tom de voz e o que NÃO mencionar. Escreva APENAS a mensagem final.`;
+Siga RIGOROSAMENTE as regras e restrições do seu System Prompt (especialmente sobre limite de tamanho e tom de voz).
+IMPORTANTE: Você deve retornar APENAS um objeto JSON com duas chaves exatas:
+{
+  "primeira_mensagem": "O texto da mensagem de prospecção",
+  "mensagem_follow_up": "Uma mensagem de 1 a 2 frases curtas, enviada 24h depois caso ele não responda, perguntando se ele conseguiu ver a mensagem e sugerindo mostrar um exemplo"
+}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -61,11 +66,12 @@ Siga RIGOROSAMENTE as regras e restrições do seu System Prompt, especialmente 
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
+        response_format: { type: "json_object" },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_tokens: 350,
+        max_tokens: 500,
         temperature: 0.85,
       }),
     });
@@ -77,16 +83,34 @@ Siga RIGOROSAMENTE as regras e restrições do seu System Prompt, especialmente 
     }
 
     const aiData = await response.json();
-    const aiMessage = aiData.choices[0]?.message?.content?.trim();
+    const aiResponseContent = aiData.choices[0]?.message?.content?.trim();
 
-    if (!aiMessage) {
+    if (!aiResponseContent) {
       return NextResponse.json({ error: 'IA não retornou mensagem' }, { status: 500 });
+    }
+
+    let parsedResponse;
+    try {
+      parsedResponse = JSON.parse(aiResponseContent);
+    } catch (e) {
+      console.error('Failed to parse JSON:', aiResponseContent);
+      return NextResponse.json({ error: 'IA não retornou um JSON válido' }, { status: 500 });
+    }
+
+    const { primeira_mensagem, mensagem_follow_up } = parsedResponse;
+
+    if (!primeira_mensagem) {
+      return NextResponse.json({ error: 'JSON não continha primeira_mensagem' }, { status: 500 });
     }
 
     // Salvar mensagem no banco e atualizar status
     const { data: updated, error: updateError } = await supabase
       .from('leads')
-      .update({ ai_message: aiMessage, status_pipeline: 'READY' })
+      .update({ 
+        ai_message: primeira_mensagem, 
+        ai_follow_up: mensagem_follow_up || null,
+        status_pipeline: 'READY' 
+      })
       .eq('id', lead_id)
       .select()
       .single();
@@ -95,7 +119,12 @@ Siga RIGOROSAMENTE as regras e restrições do seu System Prompt, especialmente 
       return NextResponse.json({ error: 'Erro ao salvar mensagem' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, lead: updated, message: aiMessage });
+    return NextResponse.json({ 
+      success: true, 
+      lead: updated, 
+      message: primeira_mensagem,
+      follow_up: mensagem_follow_up
+    });
 
   } catch (error: any) {
     console.error('AI Message Error:', error);

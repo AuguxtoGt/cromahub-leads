@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, Search, Play, Loader2 } from "lucide-react";
+import { MapPin, Search, Play, Loader2, Lightbulb } from "lucide-react";
+import { NichesModal } from "@/components/ui/NichesModal";
 
 export default function ExtractPage() {
   const [keyword, setKeyword] = useState("");
   const [location, setLocation] = useState("");
   const [filterNoWebsite, setFilterNoWebsite] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [logs, setLogs] = useState<{time: string, msg: string, type: 'info'|'success'|'error'}[]>([
     { time: new Date().toLocaleTimeString(), msg: "Aguardando configuração de busca...", type: "info" }
   ]);
@@ -59,7 +61,16 @@ export default function ExtractPage() {
         {/* Formulário de Busca */}
         <div className="col-span-1 space-y-4">
           <div className="bg-sidebar border border-border rounded-xl p-5 shadow-sm space-y-4">
-            <h2 className="font-medium text-lg border-b border-border pb-2">Nova Busca</h2>
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <h2 className="font-medium text-lg">Nova Busca</h2>
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-md flex items-center gap-1.5 transition-colors"
+              >
+                <Lightbulb className="w-3.5 h-3.5" />
+                Ideias de Nichos
+              </button>
+            </div>
             
             <div className="space-y-3">
               <div className="space-y-1">
@@ -143,6 +154,11 @@ export default function ExtractPage() {
           </div>
         </div>
       </div>
+
+      <NichesModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
     </div>
   );
 }

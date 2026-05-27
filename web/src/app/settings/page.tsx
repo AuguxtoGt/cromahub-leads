@@ -44,6 +44,7 @@ export default function SettingsPage() {
   const [isTesting, setIsTesting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [previewMessage, setPreviewMessage] = useState("");
+  const [previewFollowUp, setPreviewFollowUp] = useState("");
   const [testLeadName, setTestLeadName] = useState("Pet Shop Exemplo BH");
   const [showHistory, setShowHistory] = useState(false);
   const [addingExample, setAddingExample] = useState(false);
@@ -101,6 +102,7 @@ export default function SettingsPage() {
   const handleTest = async () => {
     setIsTesting(true);
     setPreviewMessage("");
+    setPreviewFollowUp("");
     try {
       // Monta o prompt completo com exemplos
       const examplesBlock = examples.length > 0
@@ -119,8 +121,10 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       setPreviewMessage(data.message || "Erro ao gerar pré-visualização.");
+      setPreviewFollowUp(data.follow_up || "");
     } catch {
       setPreviewMessage("Erro de conexão.");
+      setPreviewFollowUp("");
     } finally {
       setIsTesting(false);
     }
@@ -396,10 +400,19 @@ export default function SettingsPage() {
           <div className="bg-white border border-border rounded-lg p-5 text-sm text-foreground shadow-inner flex flex-col gap-4">
             <div className="whitespace-pre-wrap leading-relaxed">
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-purple-500" /> Mensagem gerada:
+                <Sparkles className="w-3.5 h-3.5 text-purple-500" /> Mensagem gerada (1º Contato):
               </div>
               {previewMessage}
             </div>
+
+            {previewFollowUp && (
+              <div className="whitespace-pre-wrap leading-relaxed bg-blue-50/50 p-4 border border-blue-100 rounded-lg mt-2">
+                <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5" /> Mensagem de Follow-up (Dia Seguinte):
+                </div>
+                <span className="text-blue-900">{previewFollowUp}</span>
+              </div>
+            )}
 
             <div className="border-t border-border pt-4 mt-2">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
