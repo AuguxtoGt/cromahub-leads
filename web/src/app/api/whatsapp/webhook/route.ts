@@ -39,12 +39,17 @@ export async function POST(request: Request) {
       }
 
       let rawRemoteJid = msg.key.remoteJid;
-      // Se for @lid (Local ID) de contas business, a Evolution manda o número real em senderPn
-      if (rawRemoteJid && rawRemoteJid.includes('@lid') && msg.key.senderPn) {
-        rawRemoteJid = msg.key.senderPn;
+      let lidJid: string | null = null;
+      let realJid = rawRemoteJid;
+
+      if (rawRemoteJid && rawRemoteJid.includes('@lid')) {
+        lidJid = rawRemoteJid;
+        if (msg.key.senderPn) {
+          realJid = msg.key.senderPn;
+        }
       }
       
-      const remoteJid = rawRemoteJid;
+      const remoteJid = realJid;
       const phone = remoteJid.split('@')[0];
       const fromMe = msg.key.fromMe;
       const messageId = msg.key.id;
@@ -87,12 +92,28 @@ export async function POST(request: Request) {
         ? new Date(Number(msg.messageTimestamp) * 1000).toISOString() 
         : new Date().toISOString();
 
-      // 1. Procurar ou criar o chat
-      let { data: chat } = await supabase
-        .from('whatsapp_chats')
-        .select('*')
-        .eq('remote_jid', remoteJid)
-        .maybeSingle();
+      // 1. Procurar o chat existente por remote_jid ou lid_jid
+      let chat = null;
+
+      // Se temos o realJid (que é o do telefone @s.whatsapp.net)
+      if (remoteJid && !remoteJid.includes('@lid')) {
+        const { data: c } = await supabase
+          .from('whatsapp_chats')
+          .select('*')
+          .eq('remote_jid', remoteJid)
+          .maybeSingle();
+        chat = c;
+      }
+
+      // Se não achou pelo realJid mas temos o lidJid, tenta achar pelo lidJid
+      if (!chat && lidJid) {
+        const { data: c } = await supabase
+          .from('whatsapp_chats')
+          .select('*')
+          .eq('lid_jid', lidJid)
+          .maybeSingle();
+        chat = c;
+      }
 
       if (!chat) {
         // Tentar achar um lead correspondente pelo número
@@ -112,6 +133,7 @@ export async function POST(request: Request) {
           .from('whatsapp_chats')
           .insert({
             remote_jid: remoteJid,
+            lid_jid: lidJid,
             phone: phone,
             name: chatName,
             lead_id: lead ? lead.id : null,
@@ -126,14 +148,28 @@ export async function POST(request: Request) {
         chat = newChat;
       } else {
         // Atualizar o chat existente
+        const updateData: any = {
+          last_message_preview: content.substring(0, 100),
+          last_message_at: timestamp,
+          unread_count: fromMe ? 0 : chat.unread_count + 1,
+          chat_status: !fromMe ? 'ANSWERED' : chat.chat_status
+        };
+
+        // Salvar lid_jid no chat existente se ainda não estiver salvo
+        if (lidJid && !chat.lid_jid) {
+          updateData.lid_jid = lidJid;
+        }
+
+        // Se o chat foi criado originalmente com JID de LID, mas agora descobrimos o JID real do telefone,
+        // atualizamos o chat com o remoteJid do telefone real.
+        if (remoteJid && !remoteJid.includes('@lid') && chat.remote_jid.includes('@lid')) {
+          updateData.remote_jid = remoteJid;
+          updateData.phone = phone;
+        }
+
         await supabase
           .from('whatsapp_chats')
-          .update({
-            last_message_preview: content.substring(0, 100),
-            last_message_at: timestamp,
-            unread_count: fromMe ? 0 : chat.unread_count + 1,
-            chat_status: !fromMe ? 'ANSWERED' : chat.chat_status
-          })
+          .update(updateData)
           .eq('id', chat.id);
       }
 
@@ -143,7 +179,7 @@ export async function POST(request: Request) {
           .from('whatsapp_messages')
           .upsert({
             chat_id: chat.id,
-            remote_jid: remoteJid,
+            remote_jid: chat.remote_jid || remoteJid,
             message_id: messageId,
             from_me: fromMe,
             content: content,
