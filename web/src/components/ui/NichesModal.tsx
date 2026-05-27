@@ -104,7 +104,7 @@ export function NichesModal({ isOpen, onClose }: { isOpen: boolean, onClose: () 
             if (filteredItems.length === 0) return null;
 
             return (
-              <div key={idx} className="animate-in fade-in duration-500" style={{ animationDelay: \`\${idx * 100}ms\` }}>
+              <div key={idx} className="animate-in fade-in duration-500" style={{ animationDelay: `${idx * 100}ms` }}>
                 <div className="flex items-center gap-2 mb-2">
                   {section.icon}
                   <h3 className="text-lg font-bold text-gray-900">{section.category}</h3>
