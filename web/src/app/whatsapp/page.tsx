@@ -9,6 +9,7 @@ export default function WhatsAppPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [isLoadingQr, setIsLoadingQr] = useState(false);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(true);
 
   const [chats, setChats] = useState<any[]>([]);
   const [selectedChat, setSelectedChat] = useState<any>(null);
@@ -45,9 +46,13 @@ export default function WhatsAppPage() {
         const data = await response.json();
         if (data.connected) {
           setIsConnected(true);
+        } else if (data.qrcode) {
+          setQrCode(data.qrcode);
         }
       } catch (e) {
         console.error(e);
+      } finally {
+        setIsCheckingConnection(false);
       }
     };
     checkConnection();
@@ -67,6 +72,16 @@ export default function WhatsAppPage() {
   useEffect(() => {
     if (selectedChat) {
       loadMessages(selectedChat.id);
+      
+      if (selectedChat.unread_count > 0) {
+        supabase.from('whatsapp_chats')
+          .update({ unread_count: 0 })
+          .eq('id', selectedChat.id)
+          .then(() => {
+            setChats(prev => prev.map(c => c.id === selectedChat.id ? { ...c, unread_count: 0 } : c));
+            setSelectedChat(prev => prev ? { ...prev, unread_count: 0 } : prev);
+          });
+      }
       
       const msgSub = supabase
         .channel(`public:whatsapp_messages:chat_id=eq.${selectedChat.id}`)
@@ -135,7 +150,18 @@ export default function WhatsAppPage() {
     setIsLoadingQr(false);
   };
 
-  if (!isConnected && !chats.length) {
+  if (isCheckingConnection) {
+    return (
+      <div className="h-[calc(100vh-2rem)] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-muted-foreground">
+          <RefreshCcw className="w-8 h-8 animate-spin" />
+          <p>Verificando conexão do WhatsApp...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isConnected) {
     return (
       <div className="h-[calc(100vh-2rem)] flex items-center justify-center">
         <div className="bg-white p-8 rounded-xl border border-border shadow-sm max-w-md w-full text-center flex flex-col items-center">
@@ -169,7 +195,7 @@ export default function WhatsAppPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-2rem)] flex bg-white border border-border rounded-xl shadow-sm overflow-hidden m-4">
+    <div className="h-[calc(100vh-130px)] flex bg-white border border-border rounded-xl shadow-sm overflow-hidden">
       {/* Sidebar - Lista de Chats */}
       <div className="w-80 border-r border-border flex flex-col bg-slate-50">
         <div className="p-4 border-b border-border bg-white flex items-center justify-between">
@@ -276,7 +302,11 @@ export default function WhatsAppPage() {
               return (
                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[70%] rounded-lg px-3 py-2 shadow-sm text-sm ${isMe ? 'bg-[#d9fdd3] text-slate-800 rounded-tr-none' : 'bg-white text-slate-800 rounded-tl-none'}`}>
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    {msg.content.startsWith('[AUDIO] ') ? (
+                      <audio src={msg.content.substring(8)} controls className="max-w-[240px] h-10" />
+                    ) : (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    )}
                     <div className="flex items-center justify-end gap-1 mt-1">
                       <span className="text-[10px] text-slate-500">
                         {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}

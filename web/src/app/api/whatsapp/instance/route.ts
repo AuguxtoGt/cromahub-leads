@@ -21,9 +21,13 @@ export async function POST() {
         instanceName: INSTANCE_NAME,
         qrcode: true,
         integration: "WHATSAPP-BAILEYS",
-        webhook: "https://leads.cromahub.cloud/api/whatsapp/webhook",
-        webhook_by_events: false,
-        events: ["MESSAGES_UPSERT"]
+        webhook: {
+          enabled: true,
+          url: "https://leads.cromahub.cloud/api/whatsapp/webhook",
+          byEvents: false,
+          base64: true,
+          events: ["MESSAGES_UPSERT", "SEND_MESSAGE"]
+        }
       })
     });
 
@@ -56,9 +60,13 @@ export async function POST() {
             instanceName: INSTANCE_NAME,
             qrcode: true,
             integration: "WHATSAPP-BAILEYS",
-            webhook: "https://leads.cromahub.cloud/api/whatsapp/webhook",
-            webhook_by_events: false,
-            events: ["MESSAGES_UPSERT"]
+            webhook: {
+              enabled: true,
+              url: "https://leads.cromahub.cloud/api/whatsapp/webhook",
+              byEvents: false,
+              base64: true,
+              events: ["MESSAGES_UPSERT", "SEND_MESSAGE"]
+            }
           })
         });
       }

@@ -35,17 +35,20 @@ export async function GET(req: Request) {
 // PATCH /api/follow-up — Marca lead como FOLLOW_UP_SENT
 export async function PATCH(req: Request) {
   try {
-    const { lead_id, success } = await req.json();
+    const { lead_id, success, error_message } = await req.json();
 
     if (!lead_id) {
       return NextResponse.json({ error: 'lead_id é obrigatório' }, { status: 400 });
     }
 
+    const updateData: any = {
+      status_pipeline: success ? 'FOLLOW_UP_SENT' : 'FAILED', // Se falhar, vai para FAILED também
+      error_message: error_message || null
+    };
+
     const { data, error } = await supabase
       .from('leads')
-      .update({ 
-        status_pipeline: success ? 'FOLLOW_UP_SENT' : 'SENT', // Se falhar, volta para SENT para tentar no dia seguinte
-      })
+      .update(updateData)
       .eq('id', lead_id)
       .select()
       .single();

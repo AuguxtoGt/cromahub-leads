@@ -30,16 +30,25 @@ export async function POST(req: Request) {
           delay: 1200,
           presence: "composing", // Mostra "digitando..."
         },
-        textMessage: {
-          text: text
-        }
+        text: text
       })
     });
 
     if (!response.ok) {
       const err = await response.text();
-      console.error('Erro na Evolution API:', err);
-      return NextResponse.json({ error: 'Erro ao enviar mensagem no WhatsApp' }, { status: 500 });
+      console.error('Erro na Evolution API (sendText):', response.status, err);
+      // Salvar o erro no banco de dados para podermos debugar!
+      if (chat_id) {
+        await supabase.from('whatsapp_messages').insert({
+          chat_id,
+          remote_jid,
+          message_id: `err-${Date.now()}`,
+          from_me: true,
+          content: `ERRO AO ENVIAR: ${err.substring(0, 100)}`,
+          status: 'PENDING'
+        });
+      }
+      return NextResponse.json({ error: 'Erro ao enviar mensagem no WhatsApp', details: err }, { status: 500 });
     }
 
     const data = await response.json();

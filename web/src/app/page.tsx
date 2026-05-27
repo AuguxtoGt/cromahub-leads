@@ -16,6 +16,17 @@ export default function LeadsPage() {
 
   useEffect(() => {
     fetchLeads();
+
+    const leadsSubscription = supabase
+      .channel('public:leads')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+        fetchLeads();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(leadsSubscription);
+    };
   }, []);
 
   const fetchLeads = async () => {
@@ -246,10 +257,15 @@ export default function LeadsPage() {
                   <div className="text-muted-foreground">Google Maps</div>
 
                   {/* Status Pipeline */}
-                  <div>
+                  <div className="flex flex-col gap-1 items-start">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${pipeline.color}`}>
                       {pipeline.label}
                     </span>
+                    {lead.status_pipeline === 'FAILED' && lead.error_message && (
+                      <span className="text-[10px] text-red-500 max-w-[120px] truncate" title={lead.error_message}>
+                        {lead.error_message}
+                      </span>
+                    )}
                   </div>
 
                   {/* Data */}
@@ -273,6 +289,18 @@ export default function LeadsPage() {
                         )}
                         {isGenerating ? 'Gerando...' : 'Gerar IA'}
                       </button>
+                    )}
+
+                    {/* Botões para QUEUED, SENT, SENDING ou FAILED */}
+                    {(lead.status_pipeline === 'QUEUED' || lead.status_pipeline === 'SENT' || lead.status_pipeline === 'SENDING' || lead.status_pipeline === 'FAILED') && (
+                       <button
+                          onClick={(e) => handleGenerateMessage(e, lead)}
+                          disabled={isGenerating}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-purple-200 text-purple-600 text-xs font-medium hover:bg-purple-50 transition-colors disabled:opacity-60"
+                        >
+                          {isGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          Gerar Novamente
+                        </button>
                     )}
 
                     {/* Botão Disparar — só aparece quando a msg está pronta */}
@@ -332,6 +360,8 @@ export default function LeadsPage() {
         isOpen={!!selectedLead} 
         onClose={() => setSelectedLead(null)} 
         lead={selectedLead} 
+        onGenerateIA={(l) => handleGenerateMessage({ stopPropagation: () => {} } as any, l)}
+        onQueueLead={(l) => handleQueueLead({ stopPropagation: () => {} } as any, l)}
       />
 
       {/* Modal de Adicionar Lead Manual */}

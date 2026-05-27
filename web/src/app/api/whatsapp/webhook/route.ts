@@ -10,12 +10,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
 
-    // Apenas mensagens novas nos importam
-    if (body.event === 'messages.upsert') {
+    // Apenas mensagens novas e envios via API nos importam
+    if (body.event === 'messages.upsert' || body.event === 'send.message') {
       const data = body.data;
       
       // Alguns webhooks mandam array, outros mandam objeto direto
-      const msg = Array.isArray(data.messages) ? data.messages[0] : (data.message || data);
+      // Se for um evento send.message, os dados já vêm diretamente no 'data'
+      const msg = Array.isArray(data.messages) ? data.messages[0] : data;
       
       if (!msg || !msg.key || !msg.key.remoteJid) {
         return NextResponse.json({ success: true });
@@ -33,10 +34,20 @@ export async function POST(request: Request) {
       const pushName = msg.pushName || phone;
       
       // Extrair o conteúdo da mensagem (pode vir em vários formatos)
-      const content = msg.message?.conversation || 
+      let content = msg.message?.conversation || 
                       msg.message?.extendedTextMessage?.text || 
                       msg.message?.imageMessage?.caption || 
                       "[Mídia/Arquivo]";
+                      
+      if (msg.message?.audioMessage) {
+        // A Evolution API envia a mídia em base64 se webhook_base64 = true
+        const base64Data = msg.message.base64 || msg.base64 || data.base64;
+        if (base64Data) {
+          content = `[AUDIO] data:audio/ogg;base64,${base64Data}`;
+        } else {
+          content = "🎵 Áudio (Sem Mídia)";
+        }
+      }
       
       const timestamp = msg.messageTimestamp 
         ? new Date(msg.messageTimestamp * 1000).toISOString() 
@@ -55,7 +66,7 @@ export async function POST(request: Request) {
           .from('leads')
           .select('id, name')
           .like('phone', `%${phone.substring(2)}%`) // Busca pelo número sem código do país
-          .single();
+          .maybeSingle();
 
         const { data: newChat } = await supabase
           .from('whatsapp_chats')
@@ -91,7 +102,7 @@ export async function POST(request: Request) {
       if (chat) {
         await supabase
           .from('whatsapp_messages')
-          .insert({
+          .upsert({
             chat_id: chat.id,
             remote_jid: remoteJid,
             message_id: messageId,
@@ -99,7 +110,7 @@ export async function POST(request: Request) {
             content: content,
             status: fromMe ? 'SENT' : 'RECEIVED',
             timestamp: timestamp
-          });
+          }, { onConflict: 'message_id' });
       }
     }
 

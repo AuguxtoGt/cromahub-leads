@@ -67,6 +67,7 @@ export async function PATCH(req: Request) {
 
     const updateData: any = {
       status_pipeline: success ? 'SENT' : 'FAILED',
+      error_message: error_message || null
     };
 
     if (success) {
