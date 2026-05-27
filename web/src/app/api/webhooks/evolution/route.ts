@@ -97,6 +97,15 @@ export async function POST(req: Request) {
             status: fromMe ? 'SENT' : 'RECEIVED',
             timestamp: new Date(msgData.messageTimestamp * 1000).toISOString()
           }, { onConflict: 'message_id' });
+
+        // FREIO DE MÃO: Se o cliente respondeu, muda o status do lead para REPLIED
+        // para que o fluxo de follow-up do n8n não dispare.
+        if (!fromMe && chat.lead_id) {
+          await supabase
+            .from('leads')
+            .update({ status_pipeline: 'REPLIED' })
+            .eq('id', chat.lead_id);
+        }
       }
     }
 
