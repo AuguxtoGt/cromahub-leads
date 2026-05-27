@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { status } = await request.json();
     
     if (!status || !['UNANSWERED', 'ANSWERED', 'INTERESTED', 'CLOSED'].includes(status)) {
@@ -12,7 +13,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const { data, error } = await supabase
       .from('whatsapp_chats')
       .update({ chat_status: status })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single();
 

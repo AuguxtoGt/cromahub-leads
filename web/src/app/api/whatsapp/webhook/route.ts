@@ -10,13 +10,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
 
+    // ===== DEBUG: Salvar o payload bruto para inspeção =====
+    // Vamos guardar uma cópia do evento bruto para entendermos o formato exato
+    const debugPayload = JSON.stringify(body).substring(0, 3000); // Limita a 3kb para não estourar
+    await supabase.from('webhook_debug_log').upsert({
+      id: body.data?.key?.id || `debug-${Date.now()}`,
+      event: body.event,
+      payload: debugPayload,
+      created_at: new Date().toISOString()
+    }).catch(() => {}); // Ignora erro se tabela não existir ainda
+    // ===== FIM DEBUG =====
+
     // Apenas mensagens novas e envios via API nos importam
     if (body.event === 'messages.upsert' || body.event === 'send.message') {
       const data = body.data;
       
-      // Alguns webhooks mandam array, outros mandam objeto direto
-      // Se for um evento send.message, os dados já vêm diretamente no 'data'
-      const msg = Array.isArray(data.messages) ? data.messages[0] : data;
+      // messages.upsert vem com data.messages[] — send.message vem direto em data
+      const msg = Array.isArray(data?.messages) ? data.messages[0] : data;
       
       if (!msg || !msg.key || !msg.key.remoteJid) {
         return NextResponse.json({ success: true });
@@ -33,24 +43,41 @@ export async function POST(request: Request) {
       const messageId = msg.key.id;
       const pushName = msg.pushName || phone;
       
-      // Extrair o conteúdo da mensagem (pode vir em vários formatos)
+      // Extrair o conteúdo da mensagem
       let content = msg.message?.conversation || 
                       msg.message?.extendedTextMessage?.text || 
-                      msg.message?.imageMessage?.caption || 
-                      "[Mídia/Arquivo]";
+                      msg.message?.imageMessage?.caption;
                       
-      if (msg.message?.audioMessage) {
-        // A Evolution API envia a mídia em base64 se webhook_base64 = true
-        const base64Data = msg.message.base64 || msg.base64 || data.base64;
+      if (!content && msg.message?.audioMessage) {
+        // base64 pode vir em: msg.message.base64, msg.base64, ou data.base64
+        // A Evolution V2 com webhookBase64=true adiciona em msg.message.base64 ou como campo extra
+        const base64Data = 
+          msg.message?.audioMessage?.jpegThumbnail || // Às vezes manda aqui
+          msg.message?.base64 || 
+          msg.base64 || 
+          data?.base64;
+        
         if (base64Data) {
           content = `[AUDIO] data:audio/ogg;base64,${base64Data}`;
         } else {
-          content = "🎵 Áudio (Sem Mídia)";
+          content = `🎵 Áudio`;
         }
+      }
+
+      if (!content && msg.message?.videoMessage) {
+        content = `🎬 Vídeo`;
+      }
+
+      if (!content && msg.message?.imageMessage) {
+        content = `🖼️ Imagem`;
+      }
+      
+      if (!content) {
+        content = `[Mídia/Arquivo]`;
       }
       
       const timestamp = msg.messageTimestamp 
-        ? new Date(msg.messageTimestamp * 1000).toISOString() 
+        ? new Date(Number(msg.messageTimestamp) * 1000).toISOString() 
         : new Date().toISOString();
 
       // 1. Procurar ou criar o chat
@@ -58,14 +85,14 @@ export async function POST(request: Request) {
         .from('whatsapp_chats')
         .select('*')
         .eq('remote_jid', remoteJid)
-        .single();
+        .maybeSingle();
 
       if (!chat) {
         // Tentar achar um lead correspondente pelo número
         const { data: lead } = await supabase
           .from('leads')
           .select('id, name')
-          .like('phone', `%${phone.substring(2)}%`) // Busca pelo número sem código do país
+          .like('phone', `%${phone.substring(2)}%`)
           .maybeSingle();
 
         const { data: newChat } = await supabase
@@ -75,7 +102,7 @@ export async function POST(request: Request) {
             phone: phone,
             name: lead ? lead.name : pushName,
             lead_id: lead ? lead.id : null,
-            last_message_preview: content,
+            last_message_preview: content.substring(0, 100),
             last_message_at: timestamp,
             unread_count: fromMe ? 0 : 1,
             chat_status: fromMe ? 'UNANSWERED' : 'ANSWERED'
@@ -89,10 +116,9 @@ export async function POST(request: Request) {
         await supabase
           .from('whatsapp_chats')
           .update({
-            last_message_preview: content,
+            last_message_preview: content.substring(0, 100),
             last_message_at: timestamp,
             unread_count: fromMe ? 0 : chat.unread_count + 1,
-            // Se o cliente respondeu, muda pra ANSWERED
             chat_status: !fromMe ? 'ANSWERED' : chat.chat_status
           })
           .eq('id', chat.id);
@@ -100,7 +126,7 @@ export async function POST(request: Request) {
 
       // 2. Salvar a mensagem
       if (chat) {
-        await supabase
+        const { error: msgError } = await supabase
           .from('whatsapp_messages')
           .upsert({
             chat_id: chat.id,
@@ -111,6 +137,10 @@ export async function POST(request: Request) {
             status: fromMe ? 'SENT' : 'RECEIVED',
             timestamp: timestamp
           }, { onConflict: 'message_id' });
+          
+        if (msgError) {
+          console.error('Erro ao salvar mensagem:', msgError);
+        }
       }
     }
 
