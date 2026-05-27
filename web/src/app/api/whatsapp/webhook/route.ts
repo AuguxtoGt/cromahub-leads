@@ -11,14 +11,15 @@ export async function POST(request: Request) {
     }
 
     // ===== DEBUG: Salvar o payload bruto para inspeção =====
-    // Vamos guardar uma cópia do evento bruto para entendermos o formato exato
-    const debugPayload = JSON.stringify(body).substring(0, 3000); // Limita a 3kb para não estourar
-    await supabase.from('webhook_debug_log').upsert({
-      id: body.data?.key?.id || `debug-${Date.now()}`,
-      event: body.event,
-      payload: debugPayload,
-      created_at: new Date().toISOString()
-    }).catch(() => {}); // Ignora erro se tabela não existir ainda
+    try {
+      const debugPayload = JSON.stringify(body).substring(0, 3000);
+      await supabase.from('webhook_debug_log').upsert({
+        id: body.data?.key?.id || `debug-${Date.now()}`,
+        event: body.event,
+        payload: debugPayload,
+        created_at: new Date().toISOString()
+      });
+    } catch { /* ignora se tabela não existir */ }
     // ===== FIM DEBUG =====
 
     // Apenas mensagens novas e envios via API nos importam

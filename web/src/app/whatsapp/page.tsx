@@ -79,7 +79,7 @@ export default function WhatsAppPage() {
           .eq('id', selectedChat.id)
           .then(() => {
             setChats(prev => prev.map(c => c.id === selectedChat.id ? { ...c, unread_count: 0 } : c));
-            setSelectedChat(prev => prev ? { ...prev, unread_count: 0 } : prev);
+            setSelectedChat((prev: any) => prev ? { ...prev, unread_count: 0 } : prev);
           });
       }
       
