@@ -96,12 +96,18 @@ export async function POST(request: Request) {
           .like('phone', `%${phone.substring(2)}%`)
           .maybeSingle();
 
+        let chatName = lead ? lead.name : pushName;
+        // Se for uma mensagem enviada por nós (n8n) e a Evolution retornar "Você", usamos o telefone
+        if (fromMe && (!chatName || chatName === 'Você' || chatName.toLowerCase() === 'você')) {
+          chatName = `+${phone}`;
+        }
+
         const { data: newChat } = await supabase
           .from('whatsapp_chats')
           .insert({
             remote_jid: remoteJid,
             phone: phone,
-            name: lead ? lead.name : pushName,
+            name: chatName,
             lead_id: lead ? lead.id : null,
             last_message_preview: content.substring(0, 100),
             last_message_at: timestamp,
