@@ -58,7 +58,7 @@ export function SlideOver({ isOpen, onClose, lead }: SlideOverProps) {
 
   // Detecta tipo de link para as Redes
   const getNetworkLinks = () => {
-    const links = [];
+    const links: { type: string, url: string, label: string }[] = [];
     if (!lead.website) return links;
     const url = lead.website.toLowerCase();
 
