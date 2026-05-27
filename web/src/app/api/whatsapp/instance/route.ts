@@ -20,7 +20,10 @@ export async function POST() {
       body: JSON.stringify({
         instanceName: INSTANCE_NAME,
         qrcode: true,
-        integration: "WHATSAPP-BAILEYS"
+        integration: "WHATSAPP-BAILEYS",
+        webhook: "https://leads.cromahub.cloud/api/whatsapp/webhook",
+        webhook_by_events: false,
+        events: ["MESSAGES_UPSERT"]
       })
     });
 
@@ -52,7 +55,10 @@ export async function POST() {
           body: JSON.stringify({
             instanceName: INSTANCE_NAME,
             qrcode: true,
-            integration: "WHATSAPP-BAILEYS"
+            integration: "WHATSAPP-BAILEYS",
+            webhook: "https://leads.cromahub.cloud/api/whatsapp/webhook",
+            webhook_by_events: false,
+            events: ["MESSAGES_UPSERT"]
           })
         });
       }

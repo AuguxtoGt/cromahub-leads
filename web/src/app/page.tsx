@@ -98,7 +98,8 @@ export default function LeadsPage() {
         .insert({
           name: newLeadData.name,
           phone: cleanPhone,
-          status_pipeline: 'NEW'
+          status_pipeline: 'NEW',
+          place_id: `manual_${Date.now()}`
         })
         .select()
         .single();

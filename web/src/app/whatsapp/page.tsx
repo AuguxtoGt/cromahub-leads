@@ -14,6 +14,7 @@ export default function WhatsAppPage() {
   const [selectedChat, setSelectedChat] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const [filter, setFilter] = useState("ALL");
 
   const loadChats = async () => {
     const { data } = await supabase
@@ -99,6 +100,25 @@ export default function WhatsAppPage() {
     }
   };
 
+  const handleUpdateStatus = async (status: string) => {
+    if (!selectedChat) return;
+    try {
+      await fetch(`/api/whatsapp/chats/${selectedChat.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      setSelectedChat({ ...selectedChat, chat_status: status });
+    } catch (e) {
+      console.error("Erro ao atualizar status", e);
+    }
+  };
+
+  const filteredChats = chats.filter(chat => {
+    if (filter === "ALL") return true;
+    return chat.chat_status === filter;
+  });
+
   const handleConnect = async () => {
     setIsLoadingQr(true);
     try {
@@ -157,7 +177,7 @@ export default function WhatsAppPage() {
           <div className="w-2 h-2 rounded-full bg-green-500" title="WhatsApp Conectado"></div>
         </div>
         
-        <div className="p-3 border-b border-border bg-white">
+        <div className="p-3 border-b border-border bg-white flex flex-col gap-2">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
             <input 
@@ -166,10 +186,24 @@ export default function WhatsAppPage() {
               className="w-full pl-9 pr-4 py-2 bg-slate-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none"
             />
           </div>
+          <div className="flex gap-1 overflow-x-auto pb-1 hide-scrollbar">
+            {['ALL', 'UNANSWERED', 'ANSWERED', 'INTERESTED', 'CLOSED'].map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${filter === f ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                {f === 'ALL' ? 'Todos' : 
+                 f === 'UNANSWERED' ? 'Não Resp.' : 
+                 f === 'ANSWERED' ? 'Respondido' : 
+                 f === 'INTERESTED' ? 'Interessado' : 'Fechado'}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {chats.map(chat => (
+          {filteredChats.map(chat => (
             <button 
               key={chat.id}
               onClick={() => setSelectedChat(chat)}
@@ -198,9 +232,9 @@ export default function WhatsAppPage() {
               </div>
             </button>
           ))}
-          {chats.length === 0 && (
+          {filteredChats.length === 0 && (
             <div className="p-8 text-center text-muted-foreground text-sm">
-              Nenhuma conversa ainda.
+              Nenhuma conversa encontrada.
             </div>
           )}
         </div>
@@ -219,6 +253,19 @@ export default function WhatsAppPage() {
                 <h3 className="font-semibold text-foreground text-sm">{selectedChat.name}</h3>
                 <p className="text-xs text-muted-foreground">{selectedChat.phone}</p>
               </div>
+            </div>
+            
+            <div>
+              <select 
+                value={selectedChat.chat_status || 'UNANSWERED'}
+                onChange={(e) => handleUpdateStatus(e.target.value)}
+                className="text-xs font-medium bg-slate-100 border-none rounded-md px-2 py-1 outline-none cursor-pointer focus:ring-2 focus:ring-green-500"
+              >
+                <option value="UNANSWERED">Não Respondido</option>
+                <option value="ANSWERED">Respondido</option>
+                <option value="INTERESTED">Interessado</option>
+                <option value="CLOSED">Fechado</option>
+              </select>
             </div>
           </div>
 
