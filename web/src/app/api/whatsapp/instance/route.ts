@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'https://api.cromahub.cloud';
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || 'CromaHubSuperSecretKey2026';
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
 const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || 'cromahub';
 
 export async function POST() {
+  if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
+    return NextResponse.json({ error: 'Variáveis de ambiente da Evolution API não configuradas.' }, { status: 500 });
+  }
+
   try {
     // 1. Tentar criar a instância
     const createRes = await fetch(`${EVOLUTION_API_URL}/instance/create`, {

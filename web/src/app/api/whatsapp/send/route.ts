@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// Substitua pelas variáveis de ambiente no Coolify
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080';
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || 'minha-chave-secreta';
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
 const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || 'cromahub';
 
 export async function POST(req: Request) {
+  if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
+    return NextResponse.json({ error: 'Variáveis de ambiente da Evolution API não configuradas.' }, { status: 500 });
+  }
+
   try {
     const { chat_id, remote_jid, text } = await req.json();
 
