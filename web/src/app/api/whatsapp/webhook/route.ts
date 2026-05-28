@@ -101,6 +101,8 @@ export async function POST(request: Request) {
           .from('whatsapp_chats')
           .select('*')
           .eq('remote_jid', remoteJid)
+          .order('last_message_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
         chat = c;
       }
@@ -111,6 +113,8 @@ export async function POST(request: Request) {
           .from('whatsapp_chats')
           .select('*')
           .eq('lid_jid', lidJid)
+          .order('last_message_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
         chat = c;
       }
@@ -121,6 +125,7 @@ export async function POST(request: Request) {
           .from('leads')
           .select('id, name')
           .like('phone', `%${phone.substring(2)}%`)
+          .limit(1)
           .maybeSingle();
 
         let chatName = lead ? lead.name : pushName;
@@ -175,20 +180,43 @@ export async function POST(request: Request) {
 
       // 2. Salvar a mensagem
       if (chat) {
-        const { error: msgError } = await supabase
+        // Verifica se a mensagem já existe para não perder áudio em caso de webhook duplo
+        const { data: existingMsg } = await supabase
           .from('whatsapp_messages')
-          .upsert({
-            chat_id: chat.id,
-            remote_jid: chat.remote_jid || remoteJid,
-            message_id: messageId,
-            from_me: fromMe,
-            content: content,
-            status: fromMe ? 'SENT' : 'RECEIVED',
-            timestamp: timestamp
-          }, { onConflict: 'message_id' });
-          
-        if (msgError) {
-          console.error('Erro ao salvar mensagem:', msgError);
+          .select('id, content')
+          .eq('message_id', messageId)
+          .maybeSingle();
+
+        if (existingMsg) {
+           // Atualiza apenas o status e, se necessário, o conteúdo se for a chegada do áudio real
+           const updatePayload: any = { status: fromMe ? 'SENT' : 'RECEIVED' };
+           if (content.startsWith('[AUDIO] data:') && !existingMsg.content?.startsWith('[AUDIO] data:')) {
+             updatePayload.content = content;
+           } else if (content !== '🎵 Áudio' && existingMsg.content === '🎵 Áudio') {
+             updatePayload.content = content;
+           }
+
+           const { error: msgError } = await supabase
+             .from('whatsapp_messages')
+             .update(updatePayload)
+             .eq('message_id', messageId);
+             
+           if (msgError) console.error('Erro ao salvar mensagem:', msgError);
+        } else {
+           // Insere a nova mensagem
+           const { error: msgError } = await supabase
+             .from('whatsapp_messages')
+             .insert({
+               chat_id: chat.id,
+               remote_jid: chat.remote_jid || remoteJid,
+               message_id: messageId,
+               from_me: fromMe,
+               content: content,
+               status: fromMe ? 'SENT' : 'RECEIVED',
+               timestamp: timestamp
+             });
+             
+           if (msgError) console.error('Erro ao inserir mensagem:', msgError);
         }
       }
     }
