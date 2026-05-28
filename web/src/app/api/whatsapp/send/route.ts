@@ -23,19 +23,14 @@ export async function POST(req: Request) {
     // Normaliza o número: a Evolution API espera apenas os dígitos
     const number = remote_jid.split('@')[0].replace(/\D/g, '');
 
-    // ── Payload Evolution API v2 ─────────────────────────────────
-    // v2 usa "textMessage": { "text": "..." }
-    // v1 usa "text": "..."
-    // Tentamos v2 primeiro, com fallback para v1
-    const payloadV2 = {
+    // ── Payload Evolution API ─────────────────────────────────
+    const payload = {
       number,
       options: {
         delay: 1200,
         presence: 'composing',
       },
-      textMessage: {
-        text,
-      },
+      text,
     };
 
     const response = await fetch(
@@ -46,48 +41,11 @@ export async function POST(req: Request) {
           'Content-Type': 'application/json',
           apikey: EVOLUTION_API_KEY,
         },
-        body: JSON.stringify(payloadV2),
+        body: JSON.stringify(payload),
       }
     );
 
-    // Se v2 falhar com 422 (Unprocessable Entity), tenta v1
-    let data: any = null;
-    if (!response.ok && response.status === 422) {
-      console.warn('Evolution v2 falhou, tentando payload v1...');
-      const payloadV1 = {
-        number,
-        options: { delay: 1200, presence: 'composing' },
-        text,
-      };
-      const responseV1 = await fetch(
-        `${EVOLUTION_API_URL}/message/sendText/${INSTANCE_NAME}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: EVOLUTION_API_KEY,
-          },
-          body: JSON.stringify(payloadV1),
-        }
-      );
-      if (!responseV1.ok) {
-        const err = await responseV1.text();
-        console.error('Erro na Evolution API (v1 fallback):', responseV1.status, err);
-        if (chat_id) {
-          await supabase.from('whatsapp_messages').insert({
-            chat_id,
-            remote_jid,
-            message_id: `err-${Date.now()}`,
-            from_me: true,
-            content: `❌ ERRO AO ENVIAR: ${err.substring(0, 100)}`,
-            media_type: 'TEXT',
-            status: 'FAILED',
-          });
-        }
-        return NextResponse.json({ error: 'Erro ao enviar mensagem', details: err }, { status: 500 });
-      }
-      data = await responseV1.json();
-    } else if (!response.ok) {
+    if (!response.ok) {
       const err = await response.text();
       console.error('Erro na Evolution API (sendText):', response.status, err);
       if (chat_id) {
@@ -102,9 +60,9 @@ export async function POST(req: Request) {
         });
       }
       return NextResponse.json({ error: 'Erro ao enviar mensagem no WhatsApp', details: err }, { status: 500 });
-    } else {
-      data = await response.json();
     }
+
+    const data = await response.json();
 
     // Salva a mensagem imediatamente no banco (otimista, sem esperar webhook)
     if (chat_id) {

@@ -28,6 +28,8 @@ async function findOrCreateChat(
     .from('whatsapp_chats')
     .select('*')
     .eq('phone_normalized', phoneNormalized)
+    .order('last_message_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   // Se a coluna phone_normalized não existir ainda, busca pelo phone
@@ -36,6 +38,8 @@ async function findOrCreateChat(
       .from('whatsapp_chats')
       .select('*')
       .eq('phone', phoneNormalized)
+      .order('last_message_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
     chat = res.data;
 
@@ -45,10 +49,14 @@ async function findOrCreateChat(
         .from('whatsapp_chats')
         .select('*')
         .eq('remote_jid', remoteJid)
+        .order('last_message_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       chat = res2.data;
     }
   }
+
+  const previewText = content.startsWith('[AUDIO]') ? '🎵 Áudio' : content.startsWith('[IMAGE]') ? '📷 Imagem' : content;
 
   if (!chat) {
     // Tenta achar o lead pelo número
@@ -66,7 +74,7 @@ async function findOrCreateChat(
       phone_normalized: phoneNormalized, // aceito silenciosamente se a coluna não existir
       name: lead?.name || pushName || phoneNormalized,
       lead_id: lead?.id || null,
-      last_message_preview: content,
+      last_message_preview: previewText,
       last_message_at: new Date().toISOString(),
       unread_count: fromMe ? 0 : 1,
     };
@@ -84,6 +92,8 @@ async function findOrCreateChat(
           .from('whatsapp_chats')
           .select('*')
           .eq('phone', phoneNormalized)
+          .order('last_message_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
         return existingChat;
       }
@@ -107,7 +117,7 @@ async function findOrCreateChat(
 
   // Atualiza o chat existente
   const updatePayload: Record<string, any> = {
-    last_message_preview: content,
+    last_message_preview: previewText,
     last_message_at: new Date().toISOString(),
     unread_count: fromMe ? 0 : (chat.unread_count || 0) + 1,
     name:
