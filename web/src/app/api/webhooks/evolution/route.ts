@@ -23,11 +23,22 @@ async function findOrCreateChat(
   const phoneNormalized = normalizePhone(remoteJid);
   if (!phoneNormalized) return null;
 
-  // 1ª tentativa: busca por phone_normalized (funciona após migration)
+  // Lógica para lidar com o 9º dígito do Brasil e DDI
+  let phoneCore = phoneNormalized;
+  if (phoneNormalized.startsWith('55') && (phoneNormalized.length === 12 || phoneNormalized.length === 13)) {
+    // Ex: 553183202969 ou 5531983202969 -> %5531%83202969
+    const ddd = phoneNormalized.substring(2, 4);
+    const last8 = phoneNormalized.slice(-8);
+    phoneCore = `%55${ddd}%${last8}`;
+  } else if (phoneNormalized.length > 5) {
+    phoneCore = `%${phoneNormalized}`;
+  }
+
+  // 1ª tentativa: busca por phone_normalized (funciona após migration, imune ao 9º dígito)
   let { data: chat, error: findError } = await supabase
     .from('whatsapp_chats')
     .select('*')
-    .eq('phone_normalized', phoneNormalized)
+    .ilike('phone_normalized', phoneCore)
     .order('last_message_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -37,7 +48,7 @@ async function findOrCreateChat(
     const res = await supabase
       .from('whatsapp_chats')
       .select('*')
-      .eq('phone', phoneNormalized)
+      .ilike('phone', phoneCore)
       .order('last_message_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -56,13 +67,12 @@ async function findOrCreateChat(
     chat = res.data;
   }
 
-  // 3ª tentativa (Retrocompatibilidade): Se a conversa é antiga e ainda não tem phone_normalized salvo,
-  // busca pelo telefone usando um LIKE dos últimos 9 dígitos para ignorar DDI e '+' 
-  if (!chat && phoneNormalized.length >= 9) {
+  // 3ª tentativa (Retrocompatibilidade e fallback extremo)
+  if (!chat && phoneNormalized.length >= 8) {
     const res = await supabase
       .from('whatsapp_chats')
       .select('*')
-      .ilike('phone', `%${phoneNormalized.slice(-9)}%`)
+      .ilike('phone', `%${phoneNormalized.slice(-8)}`)
       .order('last_message_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -109,7 +119,7 @@ async function findOrCreateChat(
         const { data: existingChat } = await supabase
           .from('whatsapp_chats')
           .select('*')
-          .eq('phone', phoneNormalized)
+          .ilike('phone_normalized', phoneCore)
           .order('last_message_at', { ascending: false })
           .limit(1)
           .maybeSingle();
