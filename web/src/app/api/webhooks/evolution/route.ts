@@ -1,105 +1,287 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// Evolution API envia POST com os eventos
+// ─────────────────────────────────────────────────────────────
+// Normaliza qualquer formato de JID para apenas dígitos do número
+// Ex: "5511999999999@s.whatsapp.net" → "5511999999999"
+//     "123456789@lid"               → "123456789"
+// ─────────────────────────────────────────────────────────────
+function normalizePhone(jid: string): string {
+  return jid.split('@')[0].replace(/\D/g, '');
+}
+
+// ─────────────────────────────────────────────────────────────
+// Encontra ou cria um chat, sempre usando phone como chave
+// (funciona com ou sem a coluna phone_normalized na tabela)
+// ─────────────────────────────────────────────────────────────
+async function findOrCreateChat(
+  remoteJid: string,
+  pushName: string,
+  fromMe: boolean,
+  content: string
+) {
+  const phoneNormalized = normalizePhone(remoteJid);
+  if (!phoneNormalized) return null;
+
+  // 1ª tentativa: busca por phone_normalized (funciona após migration)
+  let { data: chat, error: findError } = await supabase
+    .from('whatsapp_chats')
+    .select('*')
+    .eq('phone_normalized', phoneNormalized)
+    .maybeSingle();
+
+  // Se a coluna phone_normalized não existir ainda, busca pelo phone
+  if (findError && findError.message?.includes('phone_normalized')) {
+    const res = await supabase
+      .from('whatsapp_chats')
+      .select('*')
+      .eq('phone', phoneNormalized)
+      .maybeSingle();
+    chat = res.data;
+
+    // Se não encontrou pelo phone, tenta pelo remote_jid
+    if (!chat) {
+      const res2 = await supabase
+        .from('whatsapp_chats')
+        .select('*')
+        .eq('remote_jid', remoteJid)
+        .maybeSingle();
+      chat = res2.data;
+    }
+  }
+
+  if (!chat) {
+    // Tenta achar o lead pelo número
+    const { data: lead } = await supabase
+      .from('leads')
+      .select('id, name')
+      .ilike('phone', `%${phoneNormalized.slice(-9)}%`)
+      .limit(1)
+      .maybeSingle();
+
+    // Monta o payload de insert (resiliente: inclui phone_normalized se possível)
+    const insertPayload: Record<string, any> = {
+      remote_jid: remoteJid,
+      phone: phoneNormalized,
+      phone_normalized: phoneNormalized, // aceito silenciosamente se a coluna não existir
+      name: lead?.name || pushName || phoneNormalized,
+      lead_id: lead?.id || null,
+      last_message_preview: content,
+      last_message_at: new Date().toISOString(),
+      unread_count: fromMe ? 0 : 1,
+    };
+
+    const { data: newChat, error: chatError } = await supabase
+      .from('whatsapp_chats')
+      .insert(insertPayload)
+      .select()
+      .single();
+
+    if (chatError) {
+      // Conflito de UNIQUE (race condition ou duplicata) — busca novamente
+      if (chatError.code === '23505') {
+        const { data: existingChat } = await supabase
+          .from('whatsapp_chats')
+          .select('*')
+          .eq('phone', phoneNormalized)
+          .maybeSingle();
+        return existingChat;
+      }
+
+      // Se phone_normalized causou erro de coluna inexistente, tenta sem ela
+      if (chatError.message?.includes('phone_normalized')) {
+        delete insertPayload.phone_normalized;
+        const { data: fallbackChat } = await supabase
+          .from('whatsapp_chats')
+          .insert(insertPayload)
+          .select()
+          .single();
+        return fallbackChat;
+      }
+
+      console.error('Erro ao criar chat:', chatError);
+      return null;
+    }
+    return newChat;
+  }
+
+  // Atualiza o chat existente
+  const updatePayload: Record<string, any> = {
+    last_message_preview: content,
+    last_message_at: new Date().toISOString(),
+    unread_count: fromMe ? 0 : (chat.unread_count || 0) + 1,
+    name:
+      chat.name === 'Desconhecido' || !chat.name
+        ? pushName || chat.name
+        : chat.name,
+  };
+
+  // Atualiza o remote_jid se vier em formato mais estável
+  if (remoteJid.includes('@s.whatsapp.net')) {
+    updatePayload.remote_jid = remoteJid;
+  }
+
+  await supabase
+    .from('whatsapp_chats')
+    .update(updatePayload)
+    .eq('id', chat.id);
+
+  return { ...chat };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Extrai o conteúdo da mensagem, incluindo áudio em Base64
+// ─────────────────────────────────────────────────────────────
+function extractMessageContent(msgData: any): {
+  content: string;
+  mediaType: string;
+} {
+  const msg = msgData.message;
+
+  if (!msg) return { content: '📎 Mensagem vazia', mediaType: 'TEXT' };
+
+  if (msg.conversation) {
+    return { content: msg.conversation, mediaType: 'TEXT' };
+  }
+
+  if (msg.extendedTextMessage?.text) {
+    return { content: msg.extendedTextMessage.text, mediaType: 'TEXT' };
+  }
+
+  if (msg.imageMessage) {
+    const base64 = msg.imageMessage?.base64 || msg.imageMessage?.jpegThumbnail;
+    if (base64) {
+      return {
+        content: `[IMAGE] data:image/jpeg;base64,${base64}`,
+        mediaType: 'IMAGE',
+      };
+    }
+    return { content: '📷 Imagem', mediaType: 'IMAGE' };
+  }
+
+  // ─── ÁUDIO: extrai Base64 e monta data URL para o player ───────
+  if (msg.audioMessage) {
+    const base64 =
+      msg.audioMessage?.base64 ||
+      msgData.base64 ||
+      null;
+
+    if (base64) {
+      const mimeType =
+        msg.audioMessage?.mimetype || 'audio/ogg; codecs=opus';
+      return {
+        content: `[AUDIO] data:${mimeType};base64,${base64}`,
+        mediaType: 'AUDIO',
+      };
+    }
+    return { content: '🎵 Áudio (sem dados)', mediaType: 'AUDIO' };
+  }
+
+  if (msg.documentMessage) {
+    return {
+      content: `📄 ${msg.documentMessage.fileName || 'Documento'}`,
+      mediaType: 'FILE',
+    };
+  }
+
+  if (msg.videoMessage) {
+    return { content: '🎬 Vídeo', mediaType: 'VIDEO' };
+  }
+
+  if (msg.stickerMessage) {
+    return { content: '🎨 Figurinha', mediaType: 'TEXT' };
+  }
+
+  if (msg.reactionMessage) {
+    return {
+      content: `${msg.reactionMessage.text || '👍'} (reação)`,
+      mediaType: 'TEXT',
+    };
+  }
+
+  return { content: '📎 Arquivo/Outro', mediaType: 'FILE' };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Salva mensagem no banco (com fallback para schema antigo)
+// ─────────────────────────────────────────────────────────────
+async function saveMessage(
+  chatId: string,
+  remoteJid: string,
+  messageId: string,
+  fromMe: boolean,
+  content: string,
+  mediaType: string,
+  status: string,
+  timestamp: number
+) {
+  const msgPayload: Record<string, any> = {
+    chat_id: chatId,
+    remote_jid: remoteJid,
+    message_id: messageId,
+    from_me: fromMe,
+    content,
+    media_type: mediaType,
+    status,
+    timestamp: new Date(timestamp * 1000).toISOString(),
+  };
+
+  const { error } = await supabase
+    .from('whatsapp_messages')
+    .upsert(msgPayload, { onConflict: 'message_id' });
+
+  // Se media_type não existir como coluna, tenta sem ela
+  if (error?.message?.includes('media_type')) {
+    delete msgPayload.media_type;
+    await supabase
+      .from('whatsapp_messages')
+      .upsert(msgPayload, { onConflict: 'message_id' });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Handler principal do Webhook da Evolution API
+// ─────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // Verificamos o tipo de evento (messages.upsert = nova mensagem recebida/enviada)
+    // ── Evento: nova mensagem recebida ou enviada pelo painel ────
     if (body.event === 'messages.upsert') {
       const msgData = body.data;
-      
-      // O Evolution pode mandar mensagens de grupos ou status, vamos filtrar para focar em chats diretos (ou pelo menos garantir que remoteJid existe)
       const remoteJid = msgData.key?.remoteJid;
       const fromMe = msgData.key?.fromMe || false;
       const messageId = msgData.key?.id;
-      const pushName = msgData.pushName || 'Desconhecido';
-      
-      if (!remoteJid || remoteJid.includes('@g.us') || remoteJid === 'status@broadcast') {
-        return NextResponse.json({ success: true, message: 'Ignorado (grupo ou status)' });
+      const pushName = msgData.pushName || '';
+
+      // Filtra grupos e broadcasts
+      if (
+        !remoteJid ||
+        remoteJid.includes('@g.us') ||
+        remoteJid === 'status@broadcast'
+      ) {
+        return NextResponse.json({
+          success: true,
+          message: 'Ignorado (grupo ou status)',
+        });
       }
 
-      // Extrair o conteúdo de texto da mensagem
-      let content = '';
-      if (msgData.message?.conversation) {
-        content = msgData.message.conversation;
-      } else if (msgData.message?.extendedTextMessage?.text) {
-        content = msgData.message.extendedTextMessage.text;
-      } else if (msgData.message?.imageMessage) {
-        content = '📷 Imagem';
-      } else if (msgData.message?.audioMessage) {
-        content = '🎵 Áudio';
-      } else {
-        content = '📎 Arquivo/Outro';
-      }
+      const { content, mediaType } = extractMessageContent(msgData);
+      const chat = await findOrCreateChat(remoteJid, pushName, fromMe, content);
 
-      // 1. Encontrar ou criar o chat correspondente
-      // Procuramos o chat pelo remoteJid
-      let { data: chat } = await supabase
-        .from('whatsapp_chats')
-        .select('*')
-        .eq('remote_jid', remoteJid)
-        .single();
-
-      if (!chat) {
-        // Se não existir, vamos tentar encontrar um lead com esse número
-        // Limpamos o JID para pegar só o telefone (ex: 5511999999999)
-        const phoneDigits = remoteJid.split('@')[0];
-        
-        // Tenta achar um lead pelo telefone limpo
-        const { data: lead } = await supabase
-          .from('leads')
-          .select('id, name')
-          .ilike('phone', `%${phoneDigits.slice(2)}%`) // Busca parcial pelos últimos dígitos
-          .limit(1)
-          .single();
-
-        // Cria o chat
-        const { data: newChat, error: chatError } = await supabase
-          .from('whatsapp_chats')
-          .insert({
-            remote_jid: remoteJid,
-            phone: phoneDigits,
-            name: lead?.name || pushName,
-            lead_id: lead?.id || null,
-            last_message_preview: content,
-            unread_count: fromMe ? 0 : 1
-          })
-          .select()
-          .single();
-          
-        if (chatError) console.error("Erro ao criar chat:", chatError);
-        chat = newChat;
-      } else {
-        // Atualiza o chat existente
-        await supabase
-          .from('whatsapp_chats')
-          .update({
-            last_message_preview: content,
-            last_message_at: new Date().toISOString(),
-            unread_count: fromMe ? 0 : (chat.unread_count || 0) + 1,
-            name: chat.name === 'Desconhecido' ? pushName : chat.name
-          })
-          .eq('id', chat.id);
-      }
-
-      // 2. Salvar a mensagem
       if (chat) {
-        await supabase
-          .from('whatsapp_messages')
-          .upsert({
-            chat_id: chat.id,
-            remote_jid: remoteJid,
-            message_id: messageId,
-            from_me: fromMe,
-            content: content,
-            status: fromMe ? 'SENT' : 'RECEIVED',
-            timestamp: new Date(msgData.messageTimestamp * 1000).toISOString()
-          }, { onConflict: 'message_id' });
+        await saveMessage(
+          chat.id,
+          remoteJid,
+          messageId,
+          fromMe,
+          content,
+          mediaType,
+          fromMe ? 'SENT' : 'RECEIVED',
+          msgData.messageTimestamp || Math.floor(Date.now() / 1000)
+        );
 
-        // FREIO DE MÃO: Se o cliente respondeu, muda o status do lead para REPLIED
-        // para que o fluxo de follow-up do n8n não dispare.
+        // Freio de mão: cliente respondeu → para follow-up automático
         if (!fromMe && chat.lead_id) {
           await supabase
             .from('leads')
@@ -109,19 +291,51 @@ export async function POST(req: Request) {
       }
     }
 
-    // Processar atualização de status (entregue, lida, etc)
+    // ── Evento: mensagem ENVIADA pelo n8n ou API externa ────────
+    if (body.event === 'send.message') {
+      const msgData = body.data;
+      const remoteJid = msgData.key?.remoteJid;
+      const messageId = msgData.key?.id;
+
+      if (
+        !remoteJid ||
+        remoteJid.includes('@g.us') ||
+        remoteJid === 'status@broadcast'
+      ) {
+        return NextResponse.json({ success: true, message: 'Ignorado' });
+      }
+
+      const { content, mediaType } = extractMessageContent(msgData);
+      const chat = await findOrCreateChat(remoteJid, '', true, content);
+
+      if (chat) {
+        await saveMessage(
+          chat.id,
+          remoteJid,
+          messageId,
+          true,
+          content,
+          mediaType,
+          'SENT',
+          msgData.messageTimestamp || Math.floor(Date.now() / 1000)
+        );
+      }
+    }
+
+    // ── Evento: atualização de status (entregue, lido, falhou) ──
     if (body.event === 'messages.update') {
       const updates = Array.isArray(body.data) ? body.data : [body.data];
-      
+
       for (const update of updates) {
         const messageId = update.key?.id;
-        let status = 'SENT';
-        
-        if (update.update?.status === 3) status = 'DELIVERED'; // Entregue
-        if (update.update?.status === 4) status = 'READ'; // Lido
+        let status = '';
+
+        if (update.update?.status === 2) status = 'SENT';
+        if (update.update?.status === 3) status = 'DELIVERED';
+        if (update.update?.status === 4) status = 'READ';
         if (update.update?.status === 5) status = 'FAILED';
 
-        if (messageId && status !== 'SENT') {
+        if (messageId && status) {
           await supabase
             .from('whatsapp_messages')
             .update({ status })
@@ -131,7 +345,6 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-
   } catch (error: any) {
     console.error('Webhook Evolution Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
