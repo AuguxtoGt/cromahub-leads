@@ -56,6 +56,24 @@ async function findOrCreateChat(
     chat = res.data;
   }
 
+  // 3ª tentativa (Retrocompatibilidade): Se a conversa é antiga e ainda não tem phone_normalized salvo,
+  // busca pelo telefone usando um LIKE dos últimos 9 dígitos para ignorar DDI e '+' 
+  if (!chat && phoneNormalized.length >= 9) {
+    const res = await supabase
+      .from('whatsapp_chats')
+      .select('*')
+      .ilike('phone', `%${phoneNormalized.slice(-9)}%`)
+      .order('last_message_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+      
+    if (res.data) {
+      chat = res.data;
+      // Migração silenciosa: salva o phone_normalized para os próximos acessos serem instantâneos
+      await supabase.from('whatsapp_chats').update({ phone_normalized: phoneNormalized }).eq('id', chat.id);
+    }
+  }
+
   const previewText = content.startsWith('[AUDIO]') ? '🎵 Áudio' : content.startsWith('[IMAGE]') ? '📷 Imagem' : content;
 
   if (!chat) {
