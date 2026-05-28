@@ -14,6 +14,7 @@ import {
   Mic,
   Image as ImageIcon,
   FileText,
+  Trash2,
 } from "lucide-react";
 
 // ─── Tipos ──────────────────────────────────────────────────
@@ -312,6 +313,24 @@ export default function WhatsAppPage() {
     setSelectedChat({ ...selectedChat, chat_status: status });
   };
 
+  // ─── Apagar Chat ───────────────────────────────────────────
+  const handleDeleteChat = async () => {
+    if (!selectedChat) return;
+    if (!window.confirm("Tem certeza que deseja apagar esta conversa e todas as suas mensagens? Essa ação não pode ser desfeita.")) return;
+
+    try {
+      await supabase.from("whatsapp_messages").delete().eq("chat_id", selectedChat.id);
+      await supabase.from("whatsapp_chats").delete().eq("id", selectedChat.id);
+
+      setChats((prev) => prev.filter((c) => c.id !== selectedChat.id));
+      setSelectedChat(null);
+      setMessages([]);
+    } catch (e) {
+      console.error("Erro ao apagar conversa:", e);
+      alert("Erro ao apagar a conversa.");
+    }
+  };
+
   // ─── Gerar QR Code ────────────────────────────────────────
   const handleConnect = async () => {
     setIsLoadingQr(true);
@@ -508,16 +527,26 @@ export default function WhatsAppPage() {
               </div>
             </div>
 
-            <select
-              value={selectedChat.chat_status || "UNANSWERED"}
-              onChange={(e) => handleUpdateStatus(e.target.value)}
-              className="text-xs font-medium bg-slate-100 border-none rounded-md px-2 py-1 outline-none cursor-pointer focus:ring-2 focus:ring-green-500"
-            >
-              <option value="UNANSWERED">Não Respondido</option>
-              <option value="ANSWERED">Respondido</option>
-              <option value="INTERESTED">Interessado</option>
-              <option value="CLOSED">Fechado</option>
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedChat.chat_status || "UNANSWERED"}
+                onChange={(e) => handleUpdateStatus(e.target.value)}
+                className="text-xs font-medium bg-slate-100 border-none rounded-md px-2 py-1 outline-none cursor-pointer focus:ring-2 focus:ring-green-500"
+              >
+                <option value="UNANSWERED">Não Respondido</option>
+                <option value="ANSWERED">Respondido</option>
+                <option value="INTERESTED">Interessado</option>
+                <option value="CLOSED">Fechado</option>
+              </select>
+
+              <button
+                onClick={handleDeleteChat}
+                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                title="Apagar conversa"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Mensagens */}

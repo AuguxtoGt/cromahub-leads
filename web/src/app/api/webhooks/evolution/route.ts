@@ -42,18 +42,18 @@ async function findOrCreateChat(
       .limit(1)
       .maybeSingle();
     chat = res.data;
+  }
 
-    // Se não encontrou pelo phone, tenta pelo remote_jid
-    if (!chat) {
-      const res2 = await supabase
-        .from('whatsapp_chats')
-        .select('*')
-        .eq('remote_jid', remoteJid)
-        .order('last_message_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      chat = res2.data;
-    }
+  // 2ª tentativa: Se não encontrou por phone_normalized (ex: webhook de LID perdeu o senderPn), tenta pelo remote_jid exato
+  if (!chat && remoteJid) {
+    const res = await supabase
+      .from('whatsapp_chats')
+      .select('*')
+      .eq('remote_jid', remoteJid)
+      .order('last_message_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    chat = res.data;
   }
 
   const previewText = content.startsWith('[AUDIO]') ? '🎵 Áudio' : content.startsWith('[IMAGE]') ? '📷 Imagem' : content;
