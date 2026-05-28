@@ -213,7 +213,7 @@ function extractMessageContent(msgData: any): {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Salva mensagem no banco (com fallback para schema antigo)
+// Salva mensagem no banco (evita sobrescrever áudio existente com fallback)
 // ─────────────────────────────────────────────────────────────
 async function saveMessage(
   chatId: string,
@@ -225,6 +225,35 @@ async function saveMessage(
   status: string,
   timestamp: number
 ) {
+  // Verifica se a mensagem já existe (para evitar perder o Base64 em caso de webhook duplicado)
+  const { data: existingMsg } = await supabase
+    .from('whatsapp_messages')
+    .select('id, content')
+    .eq('message_id', messageId)
+    .maybeSingle();
+
+  if (existingMsg) {
+    // Se a mensagem já existe, só atualiza o status.
+    // MAS se a mensagem existente tinha um placeholder e agora chegou o Base64 real, atualizamos o conteúdo.
+    const updatePayload: Record<string, any> = { status };
+    
+    if (content.startsWith('[AUDIO] data:') && !existingMsg.content?.startsWith('[AUDIO] data:')) {
+      updatePayload.content = content;
+      updatePayload.media_type = mediaType;
+    } else if (content !== '🎵 Áudio (sem dados)' && content !== '📎 Mensagem vazia' && existingMsg.content === '🎵 Áudio (sem dados)') {
+      updatePayload.content = content;
+      updatePayload.media_type = mediaType;
+    }
+
+    await supabase
+      .from('whatsapp_messages')
+      .update(updatePayload)
+      .eq('message_id', messageId);
+      
+    return;
+  }
+
+  // Se a mensagem é nova, insere no banco
   const msgPayload: Record<string, any> = {
     chat_id: chatId,
     remote_jid: remoteJid,
@@ -238,14 +267,14 @@ async function saveMessage(
 
   const { error } = await supabase
     .from('whatsapp_messages')
-    .upsert(msgPayload, { onConflict: 'message_id' });
+    .insert(msgPayload);
 
-  // Se media_type não existir como coluna, tenta sem ela
+  // Se media_type não existir como coluna (migration pendente), tenta sem ela
   if (error?.message?.includes('media_type')) {
     delete msgPayload.media_type;
     await supabase
       .from('whatsapp_messages')
-      .upsert(msgPayload, { onConflict: 'message_id' });
+      .insert(msgPayload);
   }
 }
 
@@ -259,16 +288,27 @@ export async function POST(req: Request) {
     // ── Evento: nova mensagem recebida ou enviada pelo painel ────
     if (body.event === 'messages.upsert') {
       const msgData = body.data;
-      const remoteJid = msgData.key?.remoteJid;
+      const rawRemoteJid = msgData.key?.remoteJid;
       const fromMe = msgData.key?.fromMe || false;
       const messageId = msgData.key?.id;
       const pushName = msgData.pushName || '';
 
+      // Resolve LID para o número real (se disponível no payload da Evolution)
+      let realJid = rawRemoteJid;
+      if (rawRemoteJid && rawRemoteJid.includes('@lid')) {
+        if (msgData.key?.senderPn) {
+          realJid = msgData.key.senderPn;
+        } else if (msgData.message?.senderKeyDistributionMessage?.groupId) {
+          // Fallbacks de payload que podem conter o número
+          realJid = msgData.message.senderKeyDistributionMessage.groupId;
+        }
+      }
+
       // Filtra grupos e broadcasts
       if (
-        !remoteJid ||
-        remoteJid.includes('@g.us') ||
-        remoteJid === 'status@broadcast'
+        !realJid ||
+        realJid.includes('@g.us') ||
+        realJid === 'status@broadcast'
       ) {
         return NextResponse.json({
           success: true,
@@ -277,12 +317,25 @@ export async function POST(req: Request) {
       }
 
       const { content, mediaType } = extractMessageContent(msgData);
-      const chat = await findOrCreateChat(remoteJid, pushName, fromMe, content);
+      
+      // Envia rawRemoteJid como remoteJid para o findOrCreateChat, MAS usa realJid para phone_normalized
+      // Espera aí, no saveMessage precisamos do remoteJid real da sessão do whatsapp para responder
+      // Vamos passar o realJid para evitar duplicação, mas o rawRemoteJid para o banco se for LID?
+      // O sendMessage aceita o rawRemoteJid (@lid).
+      const chat = await findOrCreateChat(realJid, pushName, fromMe, content);
 
       if (chat) {
+        // Se a gente resolveu o LID, atualizamos o remote_jid para o raw (o LID) para garantir que podemos responder?
+        // Ou atualizamos o LID no banco?
+        // A evolution aceita tanto o senderPn quanto o LID para enviar. Mas LID é mais seguro na mesma sessão.
+        if (rawRemoteJid.includes('@lid')) {
+           // update silent para sempre ter o jid correto para responder
+           await supabase.from('whatsapp_chats').update({ remote_jid: rawRemoteJid }).eq('id', chat.id);
+        }
+
         await saveMessage(
           chat.id,
-          remoteJid,
+          rawRemoteJid,
           messageId,
           fromMe,
           content,
@@ -304,24 +357,37 @@ export async function POST(req: Request) {
     // ── Evento: mensagem ENVIADA pelo n8n ou API externa ────────
     if (body.event === 'send.message') {
       const msgData = body.data;
-      const remoteJid = msgData.key?.remoteJid;
+      const rawRemoteJid = msgData.key?.remoteJid;
       const messageId = msgData.key?.id;
 
+      // Resolve LID para o número real
+      let realJid = rawRemoteJid;
+      if (rawRemoteJid && rawRemoteJid.includes('@lid')) {
+        if (msgData.key?.senderPn) {
+          realJid = msgData.key.senderPn;
+        } else if (msgData.message?.senderKeyDistributionMessage?.groupId) {
+          realJid = msgData.message.senderKeyDistributionMessage.groupId;
+        }
+      }
+
       if (
-        !remoteJid ||
-        remoteJid.includes('@g.us') ||
-        remoteJid === 'status@broadcast'
+        !realJid ||
+        realJid.includes('@g.us') ||
+        realJid === 'status@broadcast'
       ) {
         return NextResponse.json({ success: true, message: 'Ignorado' });
       }
 
       const { content, mediaType } = extractMessageContent(msgData);
-      const chat = await findOrCreateChat(remoteJid, '', true, content);
+      const chat = await findOrCreateChat(realJid, '', true, content);
 
       if (chat) {
+        if (rawRemoteJid.includes('@lid')) {
+           await supabase.from('whatsapp_chats').update({ remote_jid: rawRemoteJid }).eq('id', chat.id);
+        }
         await saveMessage(
           chat.id,
-          remoteJid,
+          rawRemoteJid,
           messageId,
           true,
           content,

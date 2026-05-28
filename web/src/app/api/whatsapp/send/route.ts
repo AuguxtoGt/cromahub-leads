@@ -20,8 +20,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Faltando parâmetros: remote_jid e text são obrigatórios.' }, { status: 400 });
     }
 
-    // Normaliza o número: a Evolution API espera apenas os dígitos
-    const number = remote_jid.split('@')[0].replace(/\D/g, '');
+    // A Evolution API aceita o JID completo (incluindo @lid ou @g.us) ou apenas os dígitos para @s.whatsapp.net
+    // Como o painel nos envia o remote_jid, vamos usá-lo diretamente
+    const number = remote_jid;
 
     // ── Payload Evolution API ─────────────────────────────────
     const payload = {
