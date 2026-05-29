@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X } from "lucide-react";
+import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers } from "lucide-react";
 
 type SortField = "created_at" | "name" | "rating";
 type SortDir = "desc" | "asc";
@@ -26,8 +26,14 @@ export default function LeadsPage() {
   const [filterHasWebsite, setFilterHasWebsite] = useState<"ALL" | "YES" | "NO">("ALL");
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
+  // Batch state
+  const [showBatchMenu, setShowBatchMenu] = useState(false);
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, type: '' }); // 'AI' | 'QUEUE'
+
   const sortRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
+  const batchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchLeads();
@@ -38,6 +44,7 @@ export default function LeadsPage() {
     function handleClick(e: MouseEvent) {
       if (sortRef.current && !sortRef.current.contains(e.target as Node)) setShowSortMenu(false);
       if (filterRef.current && !filterRef.current.contains(e.target as Node)) setShowFilterMenu(false);
+      if (batchRef.current && !batchRef.current.contains(e.target as Node)) setShowBatchMenu(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -102,6 +109,77 @@ export default function LeadsPage() {
     }
   };
 
+  // --- Funções de Ações em Lote (Batch) ---
+  const handleBatchGenerateIA = async (count: number | 'ALL') => {
+    setShowBatchMenu(false);
+    const newLeads = leads.filter(l => !l.status_pipeline || l.status_pipeline === 'NEW');
+    const targetLeads = count === 'ALL' ? newLeads : newLeads.slice(0, count);
+    
+    if (targetLeads.length === 0) {
+      alert("Nenhum lead novo disponível.");
+      return;
+    }
+    
+    setIsBatchProcessing(true);
+    setBatchProgress({ current: 0, total: targetLeads.length, type: 'AI' });
+    
+    let processedCount = 0;
+    for (const lead of targetLeads) {
+      try {
+        const res = await fetch('/api/ai-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lead_id: lead.id }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
+        }
+      } catch (err) {
+        console.error("Erro no batch IA", err);
+      }
+      processedCount++;
+      setBatchProgress(prev => ({ ...prev, current: processedCount }));
+    }
+    
+    setTimeout(() => setIsBatchProcessing(false), 1000);
+  };
+
+  const handleBatchQueue = async (count: number | 'ALL') => {
+    setShowBatchMenu(false);
+    const readyLeads = leads.filter(l => l.status_pipeline === 'READY');
+    const targetLeads = count === 'ALL' ? readyLeads : readyLeads.slice(0, count);
+
+    if (targetLeads.length === 0) {
+      alert("Nenhum lead com mensagem pronta disponível.");
+      return;
+    }
+    
+    setIsBatchProcessing(true);
+    setBatchProgress({ current: 0, total: targetLeads.length, type: 'QUEUE' });
+    
+    let processedCount = 0;
+    for (const lead of targetLeads) {
+      try {
+        const res = await fetch('/api/queue-lead', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lead_id: lead.id }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
+        }
+      } catch (err) {
+        console.error("Erro no batch Queue", err);
+      }
+      processedCount++;
+      setBatchProgress(prev => ({ ...prev, current: processedCount }));
+    }
+    
+    setTimeout(() => setIsBatchProcessing(false), 1000);
+  };
+
   const getPipelineStatus = (lead: any) => {
     switch (lead.status_pipeline) {
       case 'READY':   return { label: 'Msg Pronta', color: 'bg-purple-50 text-purple-600 border-purple-200' };
@@ -163,21 +241,47 @@ export default function LeadsPage() {
   // Count active filters
   const activeFilters = (filterStatus !== "ALL" ? 1 : 0) + (filterHasWebsite !== "ALL" ? 1 : 0);
 
-  const sortLabels: Record<string, string> = {
-    "created_at_desc": "Mais recentes",
-    "created_at_asc": "Mais antigos",
-    "name_asc": "Nome A→Z",
-    "name_desc": "Nome Z→A",
-    "rating_desc": "Maior avaliação",
-    "rating_asc": "Menor avaliação",
-  };
-
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">Leads</h1>
         <div className="flex gap-3">
+          {/* Ações em Massa */}
+          <div ref={batchRef} className="relative">
+            <button 
+              onClick={() => { setShowBatchMenu(v => !v); setShowSortMenu(false); setShowFilterMenu(false); }}
+              className="px-4 py-2 border border-blue-600 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <Layers className="w-4 h-4" />
+              Ações em Massa
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showBatchMenu ? 'rotate-180' : ''}`} />
+            </button>
+            {showBatchMenu && (
+              <div className="absolute right-0 top-full mt-1.5 bg-white border border-border rounded-xl shadow-lg z-30 w-56 py-2 overflow-hidden">
+                <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 mb-1">Gerar Mensagens (IA)</p>
+                <button onClick={() => handleBatchGenerateIA(10)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
+                  <span>10 leads</span>
+                  <span className="text-xs text-muted-foreground">{stats.novo >= 10 ? 10 : stats.novo} Disp.</span>
+                </button>
+                <button onClick={() => handleBatchGenerateIA('ALL')} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
+                  <span>Todos novos</span>
+                  <span className="text-xs text-muted-foreground">{stats.novo} Disp.</span>
+                </button>
+
+                <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 my-1 mt-2">Enfileirar Disparos</p>
+                <button onClick={() => handleBatchQueue(10)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
+                  <span>10 leads</span>
+                  <span className="text-xs text-muted-foreground">{stats.pronto >= 10 ? 10 : stats.pronto} Disp.</span>
+                </button>
+                <button onClick={() => handleBatchQueue('ALL')} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
+                  <span>Todos prontos</span>
+                  <span className="text-xs text-muted-foreground">{stats.pronto} Disp.</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           <button 
             onClick={fetchLeads}
             className="px-4 py-2 border border-border bg-sidebar rounded-md text-sm font-medium hover:bg-muted transition-colors"
@@ -221,7 +325,7 @@ export default function LeadsPage() {
             {/* Sort Dropdown */}
             <div ref={sortRef} className="relative">
               <button 
-                onClick={() => { setShowSortMenu(v => !v); setShowFilterMenu(false); }}
+                onClick={() => { setShowSortMenu(v => !v); setShowFilterMenu(false); setShowBatchMenu(false); }}
                 className="px-3 py-1.5 border border-border rounded-md text-sm font-medium hover:bg-muted flex items-center gap-1.5"
               >
                 Ordenar
@@ -253,7 +357,7 @@ export default function LeadsPage() {
             {/* Filter Dropdown */}
             <div ref={filterRef} className="relative">
               <button 
-                onClick={() => { setShowFilterMenu(v => !v); setShowSortMenu(false); }}
+                onClick={() => { setShowFilterMenu(v => !v); setShowSortMenu(false); setShowBatchMenu(false); }}
                 className={`px-3 py-1.5 border rounded-md text-sm font-medium flex items-center gap-1.5 transition-colors ${activeFilters > 0 ? 'border-primary bg-primary/5 text-primary' : 'border-border hover:bg-muted'}`}
               >
                 Filtrar
@@ -476,6 +580,39 @@ export default function LeadsPage() {
         onClose={() => setSelectedLead(null)} 
         lead={selectedLead} 
       />
+
+      {/* Batch Processing Overlay */}
+      {isBatchProcessing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl relative z-10 flex flex-col items-center text-center space-y-4 animate-in fade-in duration-200">
+            <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-2">
+              <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">
+                {batchProgress.type === 'AI' ? 'Gerando Mensagens IA' : 'Enfileirando Disparos'}
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Processando: <span className="font-semibold text-gray-900">{batchProgress.current}</span> de {batchProgress.total}
+              </p>
+            </div>
+            
+            <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden mt-4">
+              <div 
+                className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                style={{ width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%` }}
+              />
+            </div>
+            
+            <p className="text-xs text-gray-400 mt-2">
+              Processando sequencialmente para evitar bloqueios.<br/>
+              Por favor, não feche esta aba.
+            </p>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
