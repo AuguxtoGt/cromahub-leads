@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Lightbulb, X, Search, Zap, Flame, Target } from 'lucide-react';
+import { Lightbulb, X, Search, Zap, Flame, Target, Star, TrendingUp } from 'lucide-react';
 
 const NICHES = [
   {
-    category: "Alta Concorrência (Mas com Muito Dinheiro)",
+    category: "Alta Concorrência (Muito Dinheiro)",
     icon: <Flame className="w-5 h-5 text-red-500" />,
     description: "Precisam de uma landing page premium para se destacar. Cobrar R$297 a R$497 aqui é muito fácil se a página for linda.",
     items: [
@@ -13,7 +13,10 @@ const NICHES = [
       "Concessionárias de Seminovos", "Psicólogos / Terapia Online", "Dermatologistas",
       "Escritórios de Arquitetura", "Designers de Interiores", "Consultórios de Fisioterapia",
       "Clínicas de Psicologia", "Empresas de Energia Solar", "Clínicas de Emagrecimento",
-      "Personal Trainers Premium", "Pilates e Yoga"
+      "Personal Trainers Premium", "Pilates e Yoga", "Clínicas de Fertilização",
+      "Oftalmologistas (Cirurgia a Laser)", "Ortopedistas", "Endocrinologistas",
+      "Assessores Financeiros / Wealth", "Imobiliárias de Luxo", "Consultorias Empresariais",
+      "Clínicas de Reabilitação", "Centros de Diagnóstico / Exames"
     ]
   },
   {
@@ -28,7 +31,12 @@ const NICHES = [
       "Agências de Turismo", "Aluguel de Equipamentos", "Assessorias de Casamento",
       "Vidraçarias", "Marmorarias e Granitos", "Lojas de Piscinas", "Decoração de Festas",
       "Escolas de Música", "Distribuidoras de Bebidas", "Barbearias Premium", 
-      "Estúdios de Tatuagem", "Corretoras de Seguros", "Oficinas de Funilaria e Pintura"
+      "Estúdios de Tatuagem", "Corretoras de Seguros", "Oficinas de Funilaria e Pintura",
+      "Floriculturas e Arranjos", "Lojas de Noivas", "Fotógrafos e Filmmakers",
+      "Hotéis e Pousadas", "Restaurantes Especializados", "Academias de Dança",
+      "Escolas de Artes Marciais / Jiu-Jitsu", "Agências de Publicidade Locais",
+      "Lojas de Instrumentos Musicais", "Óticas Independentes", "Clínicas de Acupuntura",
+      "Estúdios de Pilates", "Spas e Massoterapeutas", "Cabeleireiros / Salões de Beleza Premium"
     ]
   },
   {
@@ -46,7 +54,40 @@ const NICHES = [
       "Perfuradores de Poços Artesianos", "Montadores de Móveis", "Aluguel de Andaimes",
       "Borracharias 24h", "Fabricantes de Toldos", "Instaladores de Calhas",
       "Retíficas de Motores", "Tapeçarias", "Empresas de Terraplanagem",
-      "Caminhão Pipa", "Disk Caçamba", "Fornecedores de Grama", "Empresas de Paisagismo"
+      "Caminhão Pipa", "Disk Caçamba", "Fornecedores de Grama", "Empresas de Paisagismo",
+      "Impermeabilizadores de Telhado", "Limpeza de Fachadas", "Instalação de Piso",
+      "Vidraceiros Residenciais", "Conserto de Portões Automáticos", "Instalação de Interfones",
+      "Empresa de Roçagem e Capinagem", "Dedetização de Cupins", "Fumigação Agrícola"
+    ]
+  },
+  {
+    category: "Nichos Digitais / Serviços B2B",
+    icon: <TrendingUp className="w-5 h-5 text-green-500" />,
+    description: "Empresas e profissionais que vendem para outras empresas — ticket alto, decisão de compra mais longa, mas margens maiores.",
+    items: [
+      "Contadores e Escritórios Contábeis", "Despachantes Aduaneiros", "Transportadoras Locais",
+      "Empresas de TI / Suporte Técnico", "Provedores de Internet (ISP)", "Gráficas e Impressão",
+      "Empresas de Uniformes Corporativos", "Fornecedores de EPI", "Locação de Veículos Corporativos",
+      "Distribuidoras de Produtos de Limpeza", "Empresa de Cobrança", "Consultores de RH",
+      "Empresa de Treinamento Corporativo", "Agências de Recrutamento", "Contabilidade para MEI",
+      "Escritórios de Engenharia", "Empresa de Laudos e Perícias", "Certificação Digital",
+      "Empresas de Reciclagem", "Lavanderias Industriais", "Fornecedores de Embalagens",
+      "Empresa de Auditoria", "Mediação e Arbitragem", "Cursos Profissionalizantes"
+    ]
+  },
+  {
+    category: "Gastronomia e Alimentação",
+    icon: <Star className="w-5 h-5 text-yellow-500" />,
+    description: "Setor com altíssima rotatividade — quem tem uma página bonita e bem posicionada ganha clientes todos os dias.",
+    items: [
+      "Pizzarias Artesanais", "Hamburguerias Gourmet", "Temakerias", "Sushis e Japoneses",
+      "Churrascarias e Carnes Nobres", "Restaurantes de Culinária Italiana", "Cafeterias Especiais",
+      "Confeitarias e Docerias", "Bolos no Pote / Brigadeiros", "Rotisserias",
+      "Marmitas Fitness e Saudáveis", "Esfiharias", "Pastéis Gourmet", "Sorveterias Artesanais",
+      "Açaí Premium", "Sucos e Smoothies", "Padarias Artesanais", "Fabricantes de Queijo Artesanal",
+      "Vinícolas e Adegas", "Cervejas Artesanais", "Destilarias Cachaça Premium",
+      "Food Trucks", "Catering para Eventos", "Quentinhas Delivery Premium",
+      "Empórios Orgânicos", "Lojas de Temperos e Especiarias", "Cozinhas Árabes e Médio-orientais"
     ]
   }
 ];
@@ -55,6 +96,8 @@ export function NichesModal({ isOpen, onClose }: { isOpen: boolean, onClose: () 
   const [searchTerm, setSearchTerm] = useState("");
 
   if (!isOpen) return null;
+
+  const totalItems = NICHES.reduce((acc, n) => acc + n.items.length, 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -69,7 +112,7 @@ export function NichesModal({ isOpen, onClose }: { isOpen: boolean, onClose: () 
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">Ideias de Nichos para Prospecção</h2>
-              <p className="text-sm text-gray-500 font-medium">Mais de 100 mercados altamente lucrativos</p>
+              <p className="text-sm text-gray-500 font-medium">{totalItems}+ mercados altamente lucrativos em 5 categorias</p>
             </div>
           </div>
           <button 
@@ -104,10 +147,11 @@ export function NichesModal({ isOpen, onClose }: { isOpen: boolean, onClose: () 
             if (filteredItems.length === 0) return null;
 
             return (
-              <div key={idx} className="animate-in fade-in duration-500" style={{ animationDelay: `${idx * 100}ms` }}>
-                <div className="flex items-center gap-2 mb-2">
+              <div key={idx} className="animate-in fade-in duration-500" style={{ animationDelay: `${idx * 80}ms` }}>
+                <div className="flex items-center gap-2 mb-1">
                   {section.icon}
                   <h3 className="text-lg font-bold text-gray-900">{section.category}</h3>
+                  <span className="ml-auto text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{filteredItems.length}</span>
                 </div>
                 <p className="text-sm text-gray-500 mb-4 ml-7">{section.description}</p>
                 
@@ -117,7 +161,7 @@ export function NichesModal({ isOpen, onClose }: { isOpen: boolean, onClose: () 
                       key={i} 
                       className="px-3 py-2 bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-100 rounded-lg text-sm text-gray-700 hover:text-blue-700 transition-colors cursor-default flex items-center gap-2 group"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-blue-400 transition-colors" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-blue-400 transition-colors shrink-0" />
                       {item}
                     </div>
                   ))}
@@ -137,7 +181,7 @@ export function NichesModal({ isOpen, onClose }: { isOpen: boolean, onClose: () 
         {/* Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl text-center">
           <p className="text-xs font-medium text-gray-500">
-            Dica: Combine o nicho com uma região rica da sua cidade para melhores resultados (Ex: "Desentupidora em Moema SP").
+            💡 Dica: Combine o nicho com uma região rica da sua cidade para melhores resultados (Ex: "Desentupidora em Moema SP").
           </p>
         </div>
       </div>
