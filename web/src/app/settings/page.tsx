@@ -95,6 +95,9 @@ export default function SettingsPage() {
       setSettings(s => ({ ...s, version: s.version + 1 }));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    } else {
+      console.error("Save error:", error);
+      alert("Erro ao salvar: " + error.message);
     }
     setIsSaving(false);
   };
