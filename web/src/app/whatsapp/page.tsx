@@ -126,6 +126,7 @@ function formatChatTime(dateStr: string) {
 export default function WhatsAppPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [isLoadingQr, setIsLoadingQr] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
 
