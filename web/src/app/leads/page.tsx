@@ -594,9 +594,29 @@ export default function LeadsPage() {
                       </span>
                     )}
                     {lead.status_pipeline === 'SENT' && (
-                      <span className="flex items-center gap-1.5 text-xs text-green-600">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Mensagem enviada
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="hidden lg:flex items-center gap-1.5 text-xs text-green-600 mr-1" title="Mensagem enviada">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Enviada
+                        </span>
+                        <button
+                          onClick={(e) => handleQueueLead(e, lead)}
+                          disabled={isQueuing}
+                          className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors disabled:opacity-60"
+                          title="Disparar Novamente"
+                        >
+                          {isQueuing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          Reenviar
+                        </button>
+                        <button
+                          onClick={(e) => handleGenerateMessage(e, lead)}
+                          disabled={isGenerating}
+                          className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-purple-200 text-purple-600 text-xs font-medium hover:bg-purple-50 transition-colors disabled:opacity-60"
+                          title="Gerar nova mensagem"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Refazer
+                        </button>
+                      </div>
                     )}
                     {lead.status_pipeline === 'FAILED' && (
                       <button
