@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     // Buscar o prompt customizado e exemplos das configurações
     const { data: settingsData } = await supabase
       .from('settings')
-      .select('system_prompt, offer_price, offer_deadline, message_examples')
+      .select('system_prompt, offer_price, offer_deadline, message_examples, owner_name')
       .eq('id', 'default')
       .single();
 
@@ -44,7 +44,12 @@ export async function POST(req: Request) {
     // Gerar mensagem com OpenAI usando o prompt customizado
     const userPrompt = `DADOS DO LEAD:
 - Nome: ${lead.name}
-- Endereço: ${lead.formatted_address || 'Belo Horizonte'}
+- Endereço: ${lead.formatted_address || 'Não informado'}
+- Cidade: ${lead.city || 'Não informada'}
+- Estado: ${lead.state || 'Não informado'}
+
+DADOS DO VENDEDOR (QUEM ESTÁ ENVIANDO A MENSAGEM):
+- Seu Nome: ${settingsData?.owner_name || 'Gustavo'}
 
 DADOS DA OFERTA (use essas informações caso o seu system prompt instrua, caso contrário ignore):
 - Produto: Landing Page profissional

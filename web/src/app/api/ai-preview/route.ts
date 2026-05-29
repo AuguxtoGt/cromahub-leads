@@ -4,10 +4,14 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 export async function POST(req: Request) {
   try {
-    const { system_prompt, lead_name, offer_price, offer_deadline } = await req.json();
+    const { system_prompt, lead_name, offer_price, offer_deadline, owner_name } = await req.json();
 
     const userPrompt = `DADOS DO LEAD:
 - Nome da empresa: ${lead_name}
+- Endereço/Cidade: Exemplo BH, Minas Gerais (dado simulado para teste)
+
+DADOS DO VENDEDOR (QUEM ESTÁ ENVIANDO A MENSAGEM):
+- Seu Nome: ${owner_name || 'Seu Nome'}
 
 DADOS DA OFERTA (use essas informações caso o seu system prompt instrua, caso contrário ignore):
 - Produto sendo ofertado: Landing Page profissional

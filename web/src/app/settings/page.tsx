@@ -117,6 +117,7 @@ export default function SettingsPage() {
           lead_name: testLeadName,
           offer_price: settings.offer_price,
           offer_deadline: settings.offer_deadline,
+          owner_name: settings.owner_name,
         }),
       });
       const data = await res.json();
