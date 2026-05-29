@@ -351,7 +351,7 @@ export default function LeadsPage() {
         </div>
 
         {/* Table Body */}
-        <div className="divide-y divide-border relative min-h-[200px]">
+        <div className="divide-y divide-border relative min-h-[200px] max-h-[calc(100vh-320px)] overflow-y-auto custom-scrollbar">
           {isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/50 z-10">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
