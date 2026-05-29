@@ -1,0 +1,22 @@
+# macOS metadata (HD externo gera esses arquivos automaticamente)
+._*
+.DS_Store
+.AppleDouble
+.LSOverride
+__MACOSX/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Next.js
+.next/
+out/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Misc
+*.log
