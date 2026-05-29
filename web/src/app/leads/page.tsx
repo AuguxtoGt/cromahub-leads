@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers } from "lucide-react";
+import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers, Plus } from "lucide-react";
 
 type SortField = "created_at" | "name" | "rating";
 type SortDir = "desc" | "asc";
@@ -15,6 +15,11 @@ export default function LeadsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingLeadId, setLoadingLeadId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+
+  // Lead Manual State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newLeadData, setNewLeadData] = useState({ name: '', phone: '' });
+  const [isSavingLead, setIsSavingLead] = useState(false);
 
   // Sort state
   const [sortField, setSortField] = useState<SortField>("created_at");
@@ -29,7 +34,7 @@ export default function LeadsPage() {
   // Batch state
   const [showBatchMenu, setShowBatchMenu] = useState(false);
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
-  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, type: '' }); // 'AI' | 'QUEUE'
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, type: '' });
 
   const sortRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
@@ -37,6 +42,17 @@ export default function LeadsPage() {
 
   useEffect(() => {
     fetchLeads();
+
+    const leadsSubscription = supabase
+      .channel('public:leads')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+        fetchLeads();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(leadsSubscription);
+    };
   }, []);
 
   // Close menus on outside click
@@ -109,14 +125,55 @@ export default function LeadsPage() {
     }
   };
 
-  // --- Funções de Ações em Lote (Batch) ---
-  const handleBatchGenerateIA = async (count: number | 'ALL') => {
+  const handleSaveManualLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLeadData.name || !newLeadData.phone) return;
+    
+    const cleanPhone = newLeadData.phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      alert("Por favor, digite um número válido com DDD.");
+      return;
+    }
+
+    try {
+      setIsSavingLead(true);
+      const { data, error } = await supabase
+        .from('leads')
+        .insert({
+          name: newLeadData.name,
+          phone: cleanPhone,
+          status_pipeline: 'NEW',
+          place_id: `manual_${Date.now()}`
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setLeads(prev => [data, ...prev]);
+      setIsAddModalOpen(false);
+      setNewLeadData({ name: '', phone: '' });
+    } catch (err: any) {
+      alert('Erro ao salvar lead: ' + err.message);
+    } finally {
+      setIsSavingLead(false);
+    }
+  };
+
+  const handleBatchGenerateIA = async (count: number | 'ALL', targetStatus: 'NEW' | 'READY' = 'NEW') => {
     setShowBatchMenu(false);
-    const newLeads = leads.filter(l => !l.status_pipeline || l.status_pipeline === 'NEW');
-    const targetLeads = count === 'ALL' ? newLeads : newLeads.slice(0, count);
+    
+    let filteredLeads = leads;
+    if (targetStatus === 'NEW') {
+      filteredLeads = leads.filter(l => !l.status_pipeline || l.status_pipeline === 'NEW');
+    } else if (targetStatus === 'READY') {
+      filteredLeads = leads.filter(l => l.status_pipeline === 'READY' || l.status_pipeline === 'SENT');
+    }
+
+    const targetLeads = count === 'ALL' ? filteredLeads : filteredLeads.slice(0, count as number);
     
     if (targetLeads.length === 0) {
-      alert("Nenhum lead novo disponível.");
+      alert(`Nenhum lead com status ${targetStatus} disponível para gerar mensagem.`);
       return;
     }
     
@@ -191,10 +248,8 @@ export default function LeadsPage() {
     }
   };
 
-  // ── Filtering + Sorting (client-side) ──────────────────────────────
   const processedLeads = leads
     .filter(l => {
-      // search
       if (search) {
         const q = search.toLowerCase();
         const match = (l.name || "").toLowerCase().includes(q) ||
@@ -202,13 +257,11 @@ export default function LeadsPage() {
           (l.city || "").toLowerCase().includes(q);
         if (!match) return false;
       }
-      // status filter
       if (filterStatus !== "ALL") {
         const status = l.status_pipeline || "NEW";
         if (filterStatus === "NEW" && status !== "NEW" && status !== null && status !== undefined && status !== "") return false;
         if (filterStatus !== "NEW" && status !== filterStatus) return false;
       }
-      // website filter
       if (filterHasWebsite === "YES" && !l.website) return false;
       if (filterHasWebsite === "NO" && l.website) return false;
       return true;
@@ -238,16 +291,21 @@ export default function LeadsPage() {
     fila: leads.filter(l => l.status_pipeline === 'QUEUED' || l.status_pipeline === 'SENDING').length,
   };
 
-  // Count active filters
   const activeFilters = (filterStatus !== "ALL" ? 1 : 0) + (filterHasWebsite !== "ALL" ? 1 : 0);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* Page Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">Leads</h1>
         <div className="flex gap-3">
-          {/* Ações em Massa */}
+          <button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Lead Manual
+          </button>
+          
           <div ref={batchRef} className="relative">
             <button 
               onClick={() => { setShowBatchMenu(v => !v); setShowSortMenu(false); setShowFilterMenu(false); }}
@@ -259,14 +317,20 @@ export default function LeadsPage() {
             </button>
             {showBatchMenu && (
               <div className="absolute right-0 top-full mt-1.5 bg-white border border-border rounded-xl shadow-lg z-30 w-56 py-2 overflow-hidden">
-                <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 mb-1">Gerar Mensagens (IA)</p>
-                <button onClick={() => handleBatchGenerateIA(10)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
+                <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 mb-1">Gerar Mensagens (Novos)</p>
+                <button onClick={() => handleBatchGenerateIA(10, 'NEW')} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
                   <span>10 leads</span>
                   <span className="text-xs text-muted-foreground">{stats.novo >= 10 ? 10 : stats.novo} Disp.</span>
                 </button>
-                <button onClick={() => handleBatchGenerateIA('ALL')} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
+                <button onClick={() => handleBatchGenerateIA('ALL', 'NEW')} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
                   <span>Todos novos</span>
                   <span className="text-xs text-muted-foreground">{stats.novo} Disp.</span>
+                </button>
+
+                <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 my-1 mt-2">Refazer Mensagens (Prontos/Enviados)</p>
+                <button onClick={() => handleBatchGenerateIA('ALL', 'READY')} className="w-full text-left px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 transition-colors flex justify-between items-center font-medium">
+                  <span>Refazer todos</span>
+                  <span className="text-xs text-purple-400">{stats.pronto + stats.enviado} Disp.</span>
                 </button>
 
                 <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 my-1 mt-2">Enfileirar Disparos</p>
@@ -291,7 +355,6 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           { title: "Total Leads", value: stats.total.toString(), icon: "🗂️" },
@@ -310,9 +373,7 @@ export default function LeadsPage() {
         ))}
       </div>
 
-      {/* Table Section */}
       <div className="bg-sidebar border border-border rounded-xl shadow-sm flex flex-col overflow-hidden">
-        {/* Table Controls */}
         <div className="p-4 border-b border-border flex items-center justify-between bg-white">
           <input 
             type="text" 
@@ -322,7 +383,6 @@ export default function LeadsPage() {
             className="w-64 px-3 py-2 border border-border rounded-md text-sm outline-none focus:border-primary"
           />
           <div className="flex gap-2">
-            {/* Sort Dropdown */}
             <div ref={sortRef} className="relative">
               <button 
                 onClick={() => { setShowSortMenu(v => !v); setShowFilterMenu(false); setShowBatchMenu(false); }}
@@ -354,7 +414,6 @@ export default function LeadsPage() {
               )}
             </div>
 
-            {/* Filter Dropdown */}
             <div ref={filterRef} className="relative">
               <button 
                 onClick={() => { setShowFilterMenu(v => !v); setShowSortMenu(false); setShowBatchMenu(false); }}
@@ -368,7 +427,6 @@ export default function LeadsPage() {
               </button>
               {showFilterMenu && (
                 <div className="absolute right-0 top-full mt-1.5 bg-white border border-border rounded-xl shadow-lg z-30 w-60 py-2 overflow-hidden">
-                  {/* Status filter */}
                   <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Status</p>
                   {[
                     { value: "ALL", label: "Todos" },
@@ -389,7 +447,6 @@ export default function LeadsPage() {
 
                   <div className="my-1.5 border-t border-border" />
 
-                  {/* Site filter */}
                   <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Site</p>
                   {[
                     { value: "ALL", label: "Todos" },
@@ -419,7 +476,6 @@ export default function LeadsPage() {
           </div>
         </div>
 
-        {/* Active filter chips */}
         {(search || activeFilters > 0) && (
           <div className="px-4 py-2 bg-white border-b border-border flex items-center gap-2 flex-wrap">
             {search && (
@@ -444,7 +500,6 @@ export default function LeadsPage() {
           </div>
         )}
 
-        {/* Table Header */}
         <div className="grid grid-cols-8 gap-4 p-4 border-b border-border text-xs font-semibold tracking-wider text-muted-foreground uppercase bg-muted/30">
           <div className="col-span-2">Lead</div>
           <div>Telefone</div>
@@ -454,7 +509,6 @@ export default function LeadsPage() {
           <div className="col-span-2 text-center">Ações</div>
         </div>
 
-        {/* Table Body */}
         <div className="divide-y divide-border relative min-h-[200px] max-h-[calc(100vh-320px)] overflow-y-auto custom-scrollbar">
           {isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/50 z-10">
@@ -476,7 +530,6 @@ export default function LeadsPage() {
                   onClick={() => setSelectedLead(lead)}
                   className="grid grid-cols-8 gap-4 p-4 items-center text-sm hover:bg-muted/50 transition-colors cursor-pointer group"
                 >
-                  {/* Nome */}
                   <div className="col-span-2 flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500 shrink-0">
                       {lead.name.charAt(0).toUpperCase()}
@@ -489,25 +542,19 @@ export default function LeadsPage() {
                     </div>
                   </div>
 
-                  {/* Telefone */}
                   <div className="text-muted-foreground truncate">{lead.phone || "–"}</div>
-
-                  {/* Canal */}
                   <div className="text-muted-foreground">Google Maps</div>
 
-                  {/* Status Pipeline */}
                   <div>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${pipeline.color}`}>
                       {pipeline.label}
                     </span>
                   </div>
 
-                  {/* Data */}
                   <div className="text-muted-foreground">
                     {new Date(lead.created_at).toLocaleDateString('pt-BR')}
                   </div>
 
-                  {/* Ações */}
                   <div className="col-span-2 flex gap-2 justify-center" onClick={e => e.stopPropagation()}>
                     {(!lead.status_pipeline || lead.status_pipeline === 'NEW') && (
                       <button
@@ -515,11 +562,7 @@ export default function LeadsPage() {
                         disabled={isGenerating}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-600 text-white text-xs font-medium hover:bg-purple-700 transition-colors disabled:opacity-60"
                       >
-                        {isGenerating ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Sparkles className="w-3.5 h-3.5" />
-                        )}
+                        {isGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                         {isGenerating ? 'Gerando...' : 'Gerar IA'}
                       </button>
                     )}
@@ -531,11 +574,7 @@ export default function LeadsPage() {
                           disabled={isQueuing}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-600 text-white text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-60"
                         >
-                          {isQueuing ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Send className="w-3.5 h-3.5" />
-                          )}
+                          {isQueuing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                           {isQueuing ? 'Enfileirando...' : 'Disparar'}
                         </button>
                         <button
@@ -581,7 +620,6 @@ export default function LeadsPage() {
         lead={selectedLead} 
       />
 
-      {/* Batch Processing Overlay */}
       {isBatchProcessing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -613,6 +651,57 @@ export default function LeadsPage() {
         </div>
       )}
 
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-4 border-b border-border font-semibold flex justify-between items-center">
+              <span>Cadastrar Lead de Teste</span>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+            <form onSubmit={handleSaveManualLead} className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Nome do Contato</label>
+                <input 
+                  type="text" 
+                  value={newLeadData.name}
+                  onChange={e => setNewLeadData(prev => ({...prev, name: e.target.value}))}
+                  placeholder="Ex: João da Silva" 
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm outline-none focus:border-primary"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">WhatsApp (com DDD)</label>
+                <input 
+                  type="text" 
+                  value={newLeadData.phone}
+                  onChange={e => setNewLeadData(prev => ({...prev, phone: e.target.value}))}
+                  placeholder="Ex: 11999999999" 
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm outline-none focus:border-primary"
+                  required
+                />
+              </div>
+              <div className="pt-2 flex justify-end gap-2">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2 border border-border rounded-md text-sm font-medium hover:bg-muted"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isSavingLead}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-70 flex items-center gap-2"
+                >
+                  {isSavingLead ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Salvar Lead
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

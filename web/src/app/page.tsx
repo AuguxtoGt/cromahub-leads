@@ -160,13 +160,20 @@ export default function LeadsPage() {
     }
   };
 
-  const handleBatchGenerateIA = async (count: number | 'ALL') => {
+  const handleBatchGenerateIA = async (count: number | 'ALL', targetStatus: 'NEW' | 'READY' = 'NEW') => {
     setShowBatchMenu(false);
-    const newLeads = leads.filter(l => !l.status_pipeline || l.status_pipeline === 'NEW');
-    const targetLeads = count === 'ALL' ? newLeads : newLeads.slice(0, count);
+    
+    let filteredLeads = leads;
+    if (targetStatus === 'NEW') {
+      filteredLeads = leads.filter(l => !l.status_pipeline || l.status_pipeline === 'NEW');
+    } else if (targetStatus === 'READY') {
+      filteredLeads = leads.filter(l => l.status_pipeline === 'READY' || l.status_pipeline === 'SENT');
+    }
+
+    const targetLeads = count === 'ALL' ? filteredLeads : filteredLeads.slice(0, count as number);
     
     if (targetLeads.length === 0) {
-      alert("Nenhum lead novo disponível.");
+      alert(`Nenhum lead com status ${targetStatus} disponível para gerar mensagem.`);
       return;
     }
     
@@ -310,14 +317,20 @@ export default function LeadsPage() {
             </button>
             {showBatchMenu && (
               <div className="absolute right-0 top-full mt-1.5 bg-white border border-border rounded-xl shadow-lg z-30 w-56 py-2 overflow-hidden">
-                <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 mb-1">Gerar Mensagens (IA)</p>
-                <button onClick={() => handleBatchGenerateIA(10)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
+                <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 mb-1">Gerar Mensagens (Novos)</p>
+                <button onClick={() => handleBatchGenerateIA(10, 'NEW')} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
                   <span>10 leads</span>
                   <span className="text-xs text-muted-foreground">{stats.novo >= 10 ? 10 : stats.novo} Disp.</span>
                 </button>
-                <button onClick={() => handleBatchGenerateIA('ALL')} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
+                <button onClick={() => handleBatchGenerateIA('ALL', 'NEW')} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
                   <span>Todos novos</span>
                   <span className="text-xs text-muted-foreground">{stats.novo} Disp.</span>
+                </button>
+
+                <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 my-1 mt-2">Refazer Mensagens (Prontos/Enviados)</p>
+                <button onClick={() => handleBatchGenerateIA('ALL', 'READY')} className="w-full text-left px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 transition-colors flex justify-between items-center font-medium">
+                  <span>Refazer todos</span>
+                  <span className="text-xs text-purple-400">{stats.pronto + stats.enviado} Disp.</span>
                 </button>
 
                 <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 my-1 mt-2">Enfileirar Disparos</p>
