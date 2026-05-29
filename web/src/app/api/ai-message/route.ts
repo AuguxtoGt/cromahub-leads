@@ -103,12 +103,18 @@ IMPORTANTE: Você deve retornar APENAS um objeto JSON com duas chaves exatas:
       return NextResponse.json({ error: 'JSON não continha primeira_mensagem' }, { status: 500 });
     }
 
+    // Substitui placeholders com os dados reais do lead
+    const finalMessage = primeira_mensagem.replace(/\{\{nome_empresa\}\}/gi, lead.name);
+    const finalFollowUp = mensagem_follow_up
+      ? mensagem_follow_up.replace(/\{\{nome_empresa\}\}/gi, lead.name)
+      : null;
+
     // Salvar mensagem no banco e atualizar status
     const { data: updated, error: updateError } = await supabase
       .from('leads')
       .update({ 
-        ai_message: primeira_mensagem, 
-        ai_follow_up: mensagem_follow_up || null,
+        ai_message: finalMessage, 
+        ai_follow_up: finalFollowUp,
         status_pipeline: 'READY' 
       })
       .eq('id', lead_id)
@@ -122,8 +128,8 @@ IMPORTANTE: Você deve retornar APENAS um objeto JSON com duas chaves exatas:
     return NextResponse.json({ 
       success: true, 
       lead: updated, 
-      message: primeira_mensagem,
-      follow_up: mensagem_follow_up
+      message: finalMessage,
+      follow_up: finalFollowUp
     });
 
   } catch (error: any) {
