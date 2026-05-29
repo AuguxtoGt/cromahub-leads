@@ -478,6 +478,16 @@ export default function SettingsPage() {
               placeholder="+55 31 9 9999-9999" />
           </div>
         </div>
+        <div className="flex justify-end mt-2">
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-md font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-60 shadow-sm"
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {saved ? "✓ Salvo!" : isSaving ? "Salvando..." : "Salvar Configurações"}
+          </button>
+        </div>
       </div>
     </div>
   );
