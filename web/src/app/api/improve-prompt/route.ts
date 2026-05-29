@@ -1,11 +1,32 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { z } from 'zod';
+import { checkRateLimit } from '@/utils/rate-limit';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+const schema = z.object({
+  current_prompt: z.string(),
+  generated_message: z.string(),
+  feedback: z.string()
+});
+
 export async function POST(req: Request) {
   try {
-    const { current_prompt, generated_message, feedback } = await req.json();
+    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+    const rateLimit = await checkRateLimit(ip);
+    if (!rateLimit.success) {
+      return NextResponse.json({ error: rateLimit.message }, { status: 429 });
+    }
+
+    const body = await req.json();
+    const parsed = schema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 });
+    }
+
+    const { current_prompt, generated_message, feedback } = parsed.data;
 
     // O meta-prompt: uma IA que melhora o prompt de outra IA baseada em feedback humano
     const metaPrompt = `Você é um especialista em prompt engineering para vendas. 

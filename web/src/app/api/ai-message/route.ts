@@ -1,15 +1,30 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { z } from 'zod';
+import { checkRateLimit } from '@/utils/rate-limit';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+const schema = z.object({
+  lead_id: z.string().uuid()
+});
+
 export async function POST(req: Request) {
   try {
-    const { lead_id } = await req.json();
-
-    if (!lead_id) {
-      return NextResponse.json({ error: 'lead_id é obrigatório' }, { status: 400 });
+    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+    const rateLimit = await checkRateLimit(ip);
+    if (!rateLimit.success) {
+      return NextResponse.json({ error: rateLimit.message }, { status: 429 });
     }
+
+    const body = await req.json();
+    const parsed = schema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'lead_id inválido' }, { status: 400 });
+    }
+
+    const { lead_id } = parsed.data;
 
     // Buscar o lead no banco
     const { data: lead, error: fetchError } = await supabase

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// GET /api/queue-lead/batch — Puxa leads da fila em lote (usado pelo n8n a cada hora)
-export async function GET(req: Request) {
+// POST /api/queue-lead/batch — Puxa leads da fila em lote (usado pelo n8n a cada hora)
+export async function POST(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const limitParam = searchParams.get('limit') || '50';

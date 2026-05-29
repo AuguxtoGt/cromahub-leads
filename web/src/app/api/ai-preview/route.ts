@@ -1,10 +1,33 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { checkRateLimit } from '@/utils/rate-limit';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+const schema = z.object({
+  system_prompt: z.string(),
+  lead_name: z.string(),
+  offer_price: z.string(),
+  offer_deadline: z.string(),
+  owner_name: z.string().optional()
+});
+
 export async function POST(req: Request) {
   try {
-    const { system_prompt, lead_name, offer_price, offer_deadline, owner_name } = await req.json();
+    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+    const rateLimit = await checkRateLimit(ip);
+    if (!rateLimit.success) {
+      return NextResponse.json({ error: rateLimit.message }, { status: 429 });
+    }
+
+    const body = await req.json();
+    const parsed = schema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 });
+    }
+
+    const { system_prompt, lead_name, offer_price, offer_deadline, owner_name } = parsed.data;
 
     const userPrompt = `DADOS DO LEAD:
 - Nome da empresa: ${lead_name}

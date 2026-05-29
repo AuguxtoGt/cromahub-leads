@@ -311,6 +311,11 @@ async function saveMessage(
 // ─────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
   try {
+    const authHeader = req.headers.get('apikey');
+    if (process.env.EVOLUTION_WEBHOOK_KEY && authHeader !== process.env.EVOLUTION_WEBHOOK_KEY) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
 
     // ── Evento: nova mensagem recebida ou enviada pelo painel ────

@@ -23,10 +23,10 @@ export async function POST() {
         integration: "WHATSAPP-BAILEYS",
         webhook: {
           enabled: true,
-          url: "https://leads.cromahub.cloud/api/whatsapp/webhook",
+          url: "https://leads.cromahub.cloud/api/webhooks/evolution",
           byEvents: false,
           base64: true,
-          events: ["MESSAGES_UPSERT", "SEND_MESSAGE"]
+          events: ["MESSAGES_UPSERT", "SEND_MESSAGE", "MESSAGES_UPDATE"]
         }
       })
     });
@@ -62,10 +62,10 @@ export async function POST() {
             integration: "WHATSAPP-BAILEYS",
             webhook: {
               enabled: true,
-              url: "https://leads.cromahub.cloud/api/whatsapp/webhook",
+              url: "https://leads.cromahub.cloud/api/webhooks/evolution",
               byEvents: false,
               base64: true,
-              events: ["MESSAGES_UPSERT", "SEND_MESSAGE"]
+              events: ["MESSAGES_UPSERT", "SEND_MESSAGE", "MESSAGES_UPDATE"]
             }
           })
         });
@@ -95,6 +95,31 @@ export async function POST() {
 
   } catch (error: any) {
     console.error('Evolution Instance Error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE() {
+  if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
+    return NextResponse.json({ error: 'Configurações ausentes' }, { status: 500 });
+  }
+
+  try {
+    // 1. Tentar fazer logout primeiro
+    await fetch(`${EVOLUTION_API_URL}/instance/logout/${INSTANCE_NAME}`, {
+      method: 'DELETE',
+      headers: { 'apikey': EVOLUTION_API_KEY }
+    });
+    
+    // 2. Deletar a instância completamente
+    await fetch(`${EVOLUTION_API_URL}/instance/delete/${INSTANCE_NAME}`, {
+      method: 'DELETE',
+      headers: { 'apikey': EVOLUTION_API_KEY }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Force Delete Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

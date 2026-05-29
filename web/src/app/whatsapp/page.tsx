@@ -126,8 +126,8 @@ function formatChatTime(dateStr: string) {
 export default function WhatsAppPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
-  const [isLoadingQr, setIsLoadingQr] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
@@ -345,6 +345,24 @@ export default function WhatsAppPage() {
     setIsLoadingQr(false);
   };
 
+  // ─── Forçar Desconexão ─────────────────────────────────────
+  const handleForceDisconnect = async () => {
+    if (!window.confirm("Deseja realmente desconectar? Isso apagará a sessão atual no servidor e exigirá um novo QR Code.")) return;
+    setIsDisconnecting(true);
+    try {
+      await fetch("/api/whatsapp/instance", { method: "DELETE" });
+      setIsConnected(false);
+      setQrCode(null);
+      // Recarrega o QR Code
+      handleConnect();
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao desconectar");
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
   // ─── Filtragem ────────────────────────────────────────────
   const filteredChats = chats.filter((chat) => {
     const matchesFilter = filter === "ALL" || chat.chat_status === filter;
@@ -420,9 +438,19 @@ export default function WhatsAppPage() {
         {/* Header */}
         <div className="p-4 border-b border-border bg-white flex items-center justify-between">
           <h2 className="font-semibold text-lg text-foreground">Conversas</h2>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-green-600 font-medium">Conectado</span>
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleForceDisconnect}
+              disabled={isDisconnecting}
+              title="Forçar Desconexão (Limpar Sessão)"
+              className="text-[10px] bg-red-100 text-red-600 hover:bg-red-200 px-2 py-1 rounded-md font-medium transition-colors"
+            >
+              {isDisconnecting ? "Saindo..." : "Sair"}
+            </button>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-green-600 font-medium">Conectado</span>
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            </div>
           </div>
         </div>
 
