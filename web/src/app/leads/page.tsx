@@ -125,6 +125,28 @@ export default function LeadsPage() {
     }
   };
 
+  const handleManualSend = async (e: React.MouseEvent, lead: any) => {
+    e.stopPropagation();
+    const cleanPhone = lead.phone?.replace(/\\D/g, '') || '';
+    const message = encodeURIComponent(lead.copy_gerada || 'Olá!');
+    window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .update({ status_pipeline: 'CONTACTED' })
+        .eq('id', lead.id)
+        .select()
+        .single();
+        
+      if (!error && data) {
+        setLeads(prev => prev.map(l => l.id === lead.id ? data : l));
+      }
+    } catch (err) {
+      console.error("Erro ao atualizar status manual", err);
+    }
+  };
+
   const handleSaveManualLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLeadData.name || !newLeadData.phone) return;
@@ -578,6 +600,14 @@ export default function LeadsPage() {
                           {isQueuing ? 'Enfileirando...' : 'Disparar'}
                         </button>
                         <button
+                          onClick={(e) => handleManualSend(e, lead)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
+                          title="Enviar manualmente pelo WhatsApp Web/App"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          Manual
+                        </button>
+                        <button
                           onClick={(e) => handleGenerateMessage(e, lead)}
                           disabled={isGenerating}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-purple-200 text-purple-600 text-xs font-medium hover:bg-purple-50 transition-colors disabled:opacity-60"
@@ -608,6 +638,14 @@ export default function LeadsPage() {
                           Reenviar
                         </button>
                         <button
+                          onClick={(e) => handleManualSend(e, lead)}
+                          className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
+                          title="Enviar manualmente pelo WhatsApp Web/App"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          Manual
+                        </button>
+                        <button
                           onClick={(e) => handleGenerateMessage(e, lead)}
                           disabled={isGenerating}
                           className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-purple-200 text-purple-600 text-xs font-medium hover:bg-purple-50 transition-colors disabled:opacity-60"
@@ -619,12 +657,21 @@ export default function LeadsPage() {
                       </div>
                     )}
                     {lead.status_pipeline === 'FAILED' && (
-                      <button
-                        onClick={(e) => handleQueueLead(e, lead)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors"
-                      >
-                        <AlertCircle className="w-3.5 h-3.5" /> Tentar Novamente
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => handleQueueLead(e, lead)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5" /> Tentar Novamente
+                        </button>
+                        <button
+                          onClick={(e) => handleManualSend(e, lead)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 text-blue-600 text-xs font-medium hover:bg-blue-50 transition-colors"
+                          title="Enviar manualmente pelo WhatsApp Web/App"
+                        >
+                          <Send className="w-3.5 h-3.5" /> Manual
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
