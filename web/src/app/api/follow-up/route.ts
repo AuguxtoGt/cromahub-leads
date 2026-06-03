@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 
 // GET /api/follow-up — Retorna leads enviados há mais de 24h que não responderam
 export async function GET(req: Request) {

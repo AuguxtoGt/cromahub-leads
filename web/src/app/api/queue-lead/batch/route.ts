@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 
 // POST /api/queue-lead/batch — Puxa leads da fila em lote (usado pelo n8n a cada hora)
 export async function POST(req: Request) {

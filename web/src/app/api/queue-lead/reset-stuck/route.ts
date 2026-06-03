@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 
 // POST /api/queue-lead/reset-stuck
 // Reseta leads presos em SENDING por mais de 30 min de volta para QUEUED.

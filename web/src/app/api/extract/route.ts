@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
