@@ -23,11 +23,11 @@ export async function POST() {
         integration: "WHATSAPP-BAILEYS",
         webhook: {
           enabled: true,
-          url: "https://leads.cromahub.cloud/api/webhooks/evolution",
-          byEvents: false,
-          base64: true,
-          events: ["MESSAGES_UPSERT", "SEND_MESSAGE", "MESSAGES_UPDATE"]
-        }
+              url: "https://leads.cromahub.cloud/api/webhooks/evolution",
+              byEvents: false,
+              base64: true,
+              events: ["MESSAGES_UPSERT", "SEND_MESSAGE", "MESSAGES_UPDATE", "CONNECTION_UPDATE"]
+            }
       })
     });
 
@@ -65,7 +65,7 @@ export async function POST() {
               url: "https://leads.cromahub.cloud/api/webhooks/evolution",
               byEvents: false,
               base64: true,
-              events: ["MESSAGES_UPSERT", "SEND_MESSAGE", "MESSAGES_UPDATE"]
+              events: ["MESSAGES_UPSERT", "SEND_MESSAGE", "MESSAGES_UPDATE", "CONNECTION_UPDATE"]
             }
           })
         });

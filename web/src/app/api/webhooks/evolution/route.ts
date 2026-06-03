@@ -237,6 +237,31 @@ function extractMessageContent(msgData: any): {
     };
   }
 
+  if (msg.templateMessage) {
+    const text = msg.templateMessage.hydratedTemplate?.hydratedContentText || msg.templateMessage.hydratedFourRowTemplate?.hydratedContentText || '🗂️ Mensagem de Template';
+    return { content: text, mediaType: 'TEXT' };
+  }
+
+  if (msg.templateButtonReplyMessage) {
+    return { content: msg.templateButtonReplyMessage.selectedDisplayText || '🔘 Resposta de Botão', mediaType: 'TEXT' };
+  }
+
+  if (msg.buttonsMessage) {
+    return { content: msg.buttonsMessage.contentText || '🔘 Botões', mediaType: 'TEXT' };
+  }
+
+  if (msg.buttonsResponseMessage) {
+    return { content: msg.buttonsResponseMessage.selectedDisplayText || '🔘 Resposta de Botão', mediaType: 'TEXT' };
+  }
+
+  if (msg.listMessage) {
+    return { content: msg.listMessage.description || '📋 Lista', mediaType: 'TEXT' };
+  }
+
+  if (msg.listResponseMessage) {
+    return { content: msg.listResponseMessage.title || '📋 Resposta de Lista', mediaType: 'TEXT' };
+  }
+
   return { content: '📎 Arquivo/Outro', mediaType: 'FILE' };
 }
 
@@ -388,6 +413,13 @@ export async function POST(req: Request) {
             .from('leads')
             .update({ status_pipeline: 'REPLIED' })
             .eq('id', chat.lead_id);
+        } else if (fromMe && chat.lead_id) {
+          // Se enviamos mensagem, garantimos que sai do "Aguardando"
+          await supabase
+            .from('leads')
+            .update({ status_pipeline: 'CONTACTED' })
+            .eq('id', chat.lead_id)
+            .eq('status_pipeline', 'QUEUED');
         }
       }
     }
@@ -433,6 +465,15 @@ export async function POST(req: Request) {
           'SENT',
           msgData.messageTimestamp || Math.floor(Date.now() / 1000)
         );
+
+        // Atualiza o status do lead para CONTACTED se estiver na fila
+        if (chat.lead_id) {
+          await supabase
+            .from('leads')
+            .update({ status_pipeline: 'CONTACTED' })
+            .eq('id', chat.lead_id)
+            .eq('status_pipeline', 'QUEUED');
+        }
       }
     }
 
@@ -454,6 +495,34 @@ export async function POST(req: Request) {
             .from('whatsapp_messages')
             .update({ status })
             .eq('message_id', messageId);
+        }
+      }
+    }
+
+    // ── Evento: atualização de conexão ────────
+    if (body.event === 'connection.update') {
+      const state = body.data?.state;
+      console.log('[Webhook Evolution] Connection Update:', state, body.data?.statusReason);
+
+      if (state === 'close') {
+        const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || 'cromahub';
+        const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
+        const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
+
+        if (EVOLUTION_API_URL && EVOLUTION_API_KEY) {
+          console.log(`[Webhook Evolution] Instância ${INSTANCE_NAME} desconectada. Forçando exclusão para evitar limbo...`);
+          
+          // Tenta logout
+          await fetch(`${EVOLUTION_API_URL}/instance/logout/${INSTANCE_NAME}`, {
+            method: 'DELETE',
+            headers: { 'apikey': EVOLUTION_API_KEY }
+          });
+
+          // Deleta a instância
+          await fetch(`${EVOLUTION_API_URL}/instance/delete/${INSTANCE_NAME}`, {
+            method: 'DELETE',
+            headers: { 'apikey': EVOLUTION_API_KEY }
+          });
         }
       }
     }
