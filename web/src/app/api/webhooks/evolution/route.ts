@@ -312,14 +312,19 @@ async function saveMessage(
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get('apikey');
+    console.log('[Webhook Evolution] Recebendo requisição...', { url: req.url, apikey: authHeader ? '***' : 'missing' });
+
     if (process.env.EVOLUTION_WEBHOOK_KEY && authHeader !== process.env.EVOLUTION_WEBHOOK_KEY) {
+      console.log('[Webhook Evolution] FALHA DE AUTENTICAÇÃO: API Key inválida.');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json();
+    console.log('[Webhook Evolution] Body Event:', body.event);
 
     // ── Evento: nova mensagem recebida ou enviada pelo painel ────
     if (body.event === 'messages.upsert') {
+      console.log('[Webhook Evolution] payload data bruto:', JSON.stringify(body.data).substring(0, 500));
       const msgData = body.data;
       const rawRemoteJid = msgData.key?.remoteJid;
       const fromMe = msgData.key?.fromMe || false;
