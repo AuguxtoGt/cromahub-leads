@@ -127,7 +127,7 @@ export default function LeadsPage() {
 
   const handleManualSend = async (e: React.MouseEvent, lead: any) => {
     e.stopPropagation();
-    const cleanPhone = lead.phone?.replace(/\\D/g, '') || '';
+    const cleanPhone = (lead.phone || '').replace(/\D/g, '');
     const message = encodeURIComponent(lead.copy_gerada || 'Olá!');
     window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
 
