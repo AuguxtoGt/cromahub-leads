@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers, Plus } from "lucide-react";
+import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers, Plus, Trash2 } from "lucide-react";
 
 type SortField = "created_at" | "name" | "rating";
 type SortDir = "desc" | "asc";
@@ -145,6 +145,53 @@ export default function LeadsPage() {
     } catch (err) {
       console.error("Erro ao atualizar status manual", err);
     }
+  };
+
+  const handleDeleteLead = async (e: React.MouseEvent, lead: any) => {
+    e.stopPropagation();
+    if (!window.confirm(`Apagar "${lead.name}" permanentemente? Esta ação não pode ser desfeita.`)) return;
+    
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', lead.id);
+
+      if (!error) {
+        setLeads(prev => prev.filter(l => l.id !== lead.id));
+      } else {
+        alert('Erro ao apagar lead.');
+      }
+    } catch (err) {
+      console.error('Erro ao apagar lead:', err);
+    }
+  };
+
+  const handleBatchDelete = async (targetStatus?: string) => {
+    setShowBatchMenu(false);
+    const targetLeads = targetStatus
+      ? leads.filter(l => l.status_pipeline === targetStatus || (!l.status_pipeline && targetStatus === 'NEW'))
+      : leads.filter(l => l.status_pipeline === 'SENT');
+
+    if (targetLeads.length === 0) {
+      alert('Nenhum lead encontrado para apagar.');
+      return;
+    }
+    if (!window.confirm(`Apagar ${targetLeads.length} leads permanentemente? Esta ação não pode ser desfeita.`)) return;
+
+    setIsBatchProcessing(true);
+    setBatchProgress({ current: 0, total: targetLeads.length, type: 'DELETE' });
+
+    const ids = targetLeads.map(l => l.id);
+    const { error } = await supabase.from('leads').delete().in('id', ids);
+
+    if (!error) {
+      setLeads(prev => prev.filter(l => !ids.includes(l.id)));
+    } else {
+      alert('Erro ao apagar leads em massa.');
+    }
+
+    setTimeout(() => setIsBatchProcessing(false), 500);
   };
 
   const handleSaveManualLead = async (e: React.FormEvent) => {
@@ -395,6 +442,12 @@ export default function LeadsPage() {
                   <span>Esvaziar Fila</span>
                   <span className="text-xs text-red-400">{stats.fila} na fila</span>
                 </button>
+
+                <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 my-1 mt-2">Apagar Leads</p>
+                <button onClick={() => handleBatchDelete('SENT')} className="w-full text-left px-3 py-2 text-sm text-red-700 hover:bg-red-50 transition-colors flex justify-between items-center font-medium">
+                  <span>Apagar enviados</span>
+                  <span className="text-xs text-red-400">{stats.enviado} leads</span>
+                </button>
               </div>
             )}
           </div>
@@ -608,7 +661,15 @@ export default function LeadsPage() {
                     {new Date(lead.created_at).toLocaleDateString('pt-BR')}
                   </div>
 
-                  <div className="col-span-2 flex gap-2 justify-center" onClick={e => e.stopPropagation()}>
+                  <div className="col-span-2 flex gap-2 justify-center items-center" onClick={e => e.stopPropagation()}>
+                    {/* Botão de delete sempre visível no hover */}
+                    <button
+                      onClick={(e) => handleDeleteLead(e, lead)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+                      title="Apagar lead"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                     {(!lead.status_pipeline || lead.status_pipeline === 'NEW') && (
                       <button
                         onClick={(e) => handleGenerateMessage(e, lead)}
@@ -737,7 +798,8 @@ export default function LeadsPage() {
             <div>
               <h3 className="text-lg font-bold text-gray-900">
                 {batchProgress.type === 'AI' ? 'Gerando Mensagens IA' : 
-                 batchProgress.type === 'CLEAR_QUEUE' ? 'Esvaziando Fila' : 
+                 batchProgress.type === 'CLEAR_QUEUE' ? 'Esvaziando Fila' :
+                 batchProgress.type === 'DELETE' ? 'Apagando Leads' :
                  'Enfileirando Disparos'}
               </h3>
               <p className="text-sm text-gray-500 mt-1">
