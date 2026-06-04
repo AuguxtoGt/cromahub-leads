@@ -125,6 +125,28 @@ export default function LeadsPage() {
     }
   };
 
+  const handleManualSend = async (e: React.MouseEvent, lead: any) => {
+    e.stopPropagation();
+    const cleanPhone = lead.phone?.replace(/\\D/g, '') || '';
+    const message = encodeURIComponent(lead.copy_gerada || 'Olá!');
+    window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .update({ status_pipeline: 'CONTACTED' })
+        .eq('id', lead.id)
+        .select()
+        .single();
+        
+      if (!error && data) {
+        setLeads(prev => prev.map(l => l.id === lead.id ? data : l));
+      }
+    } catch (err) {
+      console.error("Erro ao atualizar status manual", err);
+    }
+  };
+
   const handleSaveManualLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLeadData.name || !newLeadData.phone) return;
@@ -237,6 +259,31 @@ export default function LeadsPage() {
     setTimeout(() => setIsBatchProcessing(false), 1000);
   };
 
+  const handleClearQueue = async () => {
+    setShowBatchMenu(false);
+    if (!window.confirm("Tem certeza que deseja remover todos os leads da fila de disparo? Eles voltarão para 'Msg Pronta'.")) return;
+    
+    setIsBatchProcessing(true);
+    setBatchProgress({ current: 1, total: 1, type: 'CLEAR_QUEUE' });
+    
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ status_pipeline: 'READY' })
+        .eq('status_pipeline', 'QUEUED');
+        
+      if (!error) {
+        setLeads(prev => prev.map(l => l.status_pipeline === 'QUEUED' ? { ...l, status_pipeline: 'READY' } : l));
+      } else {
+        alert("Erro ao limpar fila.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTimeout(() => setIsBatchProcessing(false), 500);
+    }
+  };
+
   const getPipelineStatus = (lead: any) => {
     switch (lead.status_pipeline) {
       case 'READY':   return { label: 'Msg Pronta', color: 'bg-purple-50 text-purple-600 border-purple-200' };
@@ -341,6 +388,12 @@ export default function LeadsPage() {
                 <button onClick={() => handleBatchQueue('ALL')} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
                   <span>Todos prontos</span>
                   <span className="text-xs text-muted-foreground">{stats.pronto} Disp.</span>
+                </button>
+
+                <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 my-1 mt-2">Gerenciamento de Fila</p>
+                <button onClick={handleClearQueue} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex justify-between items-center font-medium">
+                  <span>Esvaziar Fila</span>
+                  <span className="text-xs text-red-400">{stats.fila} na fila</span>
                 </button>
               </div>
             )}
@@ -578,6 +631,14 @@ export default function LeadsPage() {
                           {isQueuing ? 'Enfileirando...' : 'Disparar'}
                         </button>
                         <button
+                          onClick={(e) => handleManualSend(e, lead)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
+                          title="Enviar manualmente pelo WhatsApp Web/App"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          Manual
+                        </button>
+                        <button
                           onClick={(e) => handleGenerateMessage(e, lead)}
                           disabled={isGenerating}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-purple-200 text-purple-600 text-xs font-medium hover:bg-purple-50 transition-colors disabled:opacity-60"
@@ -589,9 +650,18 @@ export default function LeadsPage() {
                     )}
 
                     {lead.status_pipeline === 'QUEUED' && (
-                      <span className="flex items-center gap-1.5 text-xs text-amber-600">
-                        <Clock className="w-3.5 h-3.5" /> Aguardando disparo...
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1.5 text-xs text-amber-600">
+                          <Clock className="w-3.5 h-3.5" /> Aguardando...
+                        </span>
+                        <button
+                          onClick={(e) => handleManualSend(e, lead)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 text-blue-600 text-xs font-medium hover:bg-blue-50 transition-colors"
+                          title="Enviar manualmente pelo WhatsApp Web/App"
+                        >
+                          <Send className="w-3.5 h-3.5" /> Manual
+                        </button>
+                      </div>
                     )}
                     {lead.status_pipeline === 'SENT' && (
                       <div className="flex items-center gap-2">
@@ -608,6 +678,14 @@ export default function LeadsPage() {
                           Reenviar
                         </button>
                         <button
+                          onClick={(e) => handleManualSend(e, lead)}
+                          className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
+                          title="Enviar manualmente pelo WhatsApp Web/App"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          Manual
+                        </button>
+                        <button
                           onClick={(e) => handleGenerateMessage(e, lead)}
                           disabled={isGenerating}
                           className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-purple-200 text-purple-600 text-xs font-medium hover:bg-purple-50 transition-colors disabled:opacity-60"
@@ -619,12 +697,21 @@ export default function LeadsPage() {
                       </div>
                     )}
                     {lead.status_pipeline === 'FAILED' && (
-                      <button
-                        onClick={(e) => handleQueueLead(e, lead)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors"
-                      >
-                        <AlertCircle className="w-3.5 h-3.5" /> Tentar Novamente
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => handleQueueLead(e, lead)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5" /> Tentar Novamente
+                        </button>
+                        <button
+                          onClick={(e) => handleManualSend(e, lead)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 text-blue-600 text-xs font-medium hover:bg-blue-50 transition-colors"
+                          title="Enviar manualmente pelo WhatsApp Web/App"
+                        >
+                          <Send className="w-3.5 h-3.5" /> Manual
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -649,7 +736,9 @@ export default function LeadsPage() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">
-                {batchProgress.type === 'AI' ? 'Gerando Mensagens IA' : 'Enfileirando Disparos'}
+                {batchProgress.type === 'AI' ? 'Gerando Mensagens IA' : 
+                 batchProgress.type === 'CLEAR_QUEUE' ? 'Esvaziando Fila' : 
+                 'Enfileirando Disparos'}
               </h3>
               <p className="text-sm text-gray-500 mt-1">
                 Processando: <span className="font-semibold text-gray-900">{batchProgress.current}</span> de {batchProgress.total}
