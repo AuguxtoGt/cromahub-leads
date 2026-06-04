@@ -128,13 +128,13 @@ export default function LeadsPage() {
   const handleManualSend = async (e: React.MouseEvent, lead: any) => {
     e.stopPropagation();
     const cleanPhone = (lead.phone || '').replace(/\D/g, '');
-    const message = encodeURIComponent(lead.copy_gerada || 'Olá!');
+    const message = encodeURIComponent(lead.ai_message || lead.copy_gerada || '');
     window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
 
     try {
       const { data, error } = await supabase
         .from('leads')
-        .update({ status_pipeline: 'CONTACTED' })
+        .update({ status_pipeline: 'SENT' })
         .eq('id', lead.id)
         .select()
         .single();
