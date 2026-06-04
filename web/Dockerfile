@@ -5,6 +5,9 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 COPY . .
+
+# Cache bust - muda este valor para forçar rebuild completo
+ARG CACHE_BUST=2
 RUN npm run build
 
 FROM node:20-alpine AS runner
