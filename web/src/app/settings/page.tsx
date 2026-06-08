@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Save, Sparkles, Loader2, RotateCcw, Plus, Trash2, History, ChevronDown, ChevronUp, ThumbsUp } from "lucide-react";
+import { Save, Sparkles, Loader2, RotateCcw, Plus, Trash2, History, ChevronDown, ChevronUp, ThumbsUp, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
 
 const DEFAULT_PROMPT = `Você é um vendedor consultivo especialista em presença digital para pequenos negócios. Sua missão é abordar donos de empresas locais que ainda não têm site próprio e apresentar nossa oferta de forma natural, humana e persuasiva.
 
@@ -489,6 +489,173 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {/* Segurança */}
+      <SecuritySection />
+    </div>
+  );
+}
+
+function SecuritySection() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isChanging, setIsChanging] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const passwordStrength = () => {
+    if (newPassword.length === 0) return 0;
+    let score = 0;
+    if (newPassword.length >= 8) score++;
+    if (/[A-Z]/.test(newPassword)) score++;
+    if (/[0-9]/.test(newPassword)) score++;
+    if (/[^A-Za-z0-9]/.test(newPassword)) score++;
+    return score;
+  };
+
+  const strengthLabel = ["", "Fraca", "Razoável", "Boa", "Forte"];
+  const strengthColor = ["", "#ef4444", "#f97316", "#eab308", "#22c55e"];
+  const strength = passwordStrength();
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    if (newPassword.length < 8) {
+      setErrorMsg("A nova senha deve ter pelo menos 8 caracteres.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMsg("As senhas não coincidem.");
+      return;
+    }
+
+    setIsChanging(true);
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      setErrorMsg("Erro ao atualizar senha: " + error.message);
+    } else {
+      setSuccessMsg("✓ Senha alterada com sucesso!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => setSuccessMsg(""), 5000);
+    }
+
+    setIsChanging(false);
+  };
+
+  return (
+    <div className="bg-sidebar border border-border rounded-xl p-6 shadow-sm flex flex-col gap-5">
+      <div className="border-b border-border pb-3 flex items-center gap-2">
+        <ShieldCheck className="w-5 h-5 text-blue-600" />
+        <div>
+          <h2 className="font-semibold text-foreground text-lg">🔒 Segurança</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Altere sua senha de acesso.</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
+        {/* Nova Senha */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nova Senha</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <input
+                type={showNew ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full pl-9 pr-10 py-2 border border-border rounded-md text-sm outline-none focus:border-primary transition-all"
+                placeholder="Mínimo 8 caracteres"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNew(!showNew)}
+                className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground"
+              >
+                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {newPassword.length > 0 && (
+              <div>
+                <div className="flex gap-1 mb-1">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="h-1 flex-1 rounded-full transition-all duration-300"
+                      style={{ backgroundColor: i <= strength ? strengthColor[strength] : "#e5e7eb" }}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs" style={{ color: strengthColor[strength] }}>
+                  {strengthLabel[strength]}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Confirmar Nova Senha</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <input
+                type={showConfirm ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full pl-9 pr-10 py-2 border border-border rounded-md text-sm outline-none focus:border-primary transition-all"
+                placeholder="Repita a nova senha"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(!showConfirm)}
+                className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground"
+              >
+                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {confirmPassword.length > 0 && (
+              <p className={`text-xs ${newPassword === confirmPassword ? "text-green-600" : "text-red-500"}`}>
+                {newPassword === confirmPassword ? "✓ Senhas coincidem" : "✗ Senhas não coincidem"}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+            {errorMsg}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 font-medium">
+            {successMsg}
+          </div>
+        )}
+
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={isChanging || !newPassword || !confirmPassword}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-md font-medium text-sm hover:bg-blue-700 transition-colors disabled:opacity-60 shadow-sm"
+          >
+            {isChanging ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            {isChanging ? "Salvando..." : "Alterar Senha"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
