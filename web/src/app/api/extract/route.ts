@@ -63,8 +63,32 @@ export async function POST(req: Request) {
         });
 
         if (!apiResponse.ok) {
-          console.error('Google API Error:', await apiResponse.text());
-          break; // Pula para a próxima região se der erro
+          const errorBody = await apiResponse.text();
+          console.error('Google API Error:', errorBody);
+          
+          let parsedError: any = {};
+          try { parsedError = JSON.parse(errorBody); } catch {}
+          
+          const googleMessage = parsedError?.error?.message || errorBody;
+          const googleStatus = parsedError?.error?.status || 'UNKNOWN';
+
+          // Erros críticos: não adianta tentar outras regiões, retorna imediatamente
+          if (apiResponse.status === 403 || apiResponse.status === 401 || apiResponse.status === 400) {
+            return NextResponse.json({
+              success: false,
+              error: `❌ Erro na Google Places API: ${googleMessage}`,
+              google_status: googleStatus,
+              google_http_code: apiResponse.status,
+              dicas: apiResponse.status === 403 ? [
+                "1. Verifique se a 'Places API (New)' está habilitada no Google Cloud Console",
+                "2. Confirme que o faturamento (billing) está ativo no projeto GCP",
+                "3. Verifique se a chave API não possui restrições de HTTP Referrer (usar apenas restrição de IP para uso server-side)",
+                "4. Confirme que a chave pertence ao mesmo projeto onde a API está habilitada"
+              ] : []
+            }, { status: 502 });
+          }
+          
+          break; // Para outros erros (429, 5xx), pula para próxima região
         }
 
         const data = await apiResponse.json();

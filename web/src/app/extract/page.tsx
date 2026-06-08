@@ -37,7 +37,15 @@ export default function ExtractPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Erro desconhecido na extração");
+        addLog(data.error || "Erro desconhecido na extração", "error");
+        if (data.google_http_code) {
+          addLog(`HTTP ${data.google_http_code} — Status Google: ${data.google_status}`, "error");
+        }
+        if (data.dicas && data.dicas.length > 0) {
+          addLog("━━━ POSSÍVEIS CAUSAS ━━━", "error");
+          data.dicas.forEach((d: string) => addLog(d, "error"));
+        }
+        return;
       }
 
       addLog(`🏁 EXTRAÇÃO CONCLUÍDA COM SUCESSO!`, "success");
@@ -45,7 +53,7 @@ export default function ExtractPage() {
       addLog(data.message, "info");
 
     } catch (err: any) {
-      addLog(`Erro: ${err.message}`, "error");
+      addLog(`Erro de conexão: ${err.message}`, "error");
     } finally {
       setIsLoading(false);
     }
