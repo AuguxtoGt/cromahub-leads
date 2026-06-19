@@ -116,7 +116,11 @@ export default function LeadsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
+        // Move o lead disparado para o final da lista
+        setLeads(prev => [
+          ...prev.filter(l => l.id !== lead.id),
+          data.lead,
+        ]);
       }
     } catch (err) {
       alert('Erro ao enfileirar lead.');
@@ -140,7 +144,11 @@ export default function LeadsPage() {
         .single();
         
       if (!error && data) {
-        setLeads(prev => prev.map(l => l.id === lead.id ? data : l));
+        // Move o lead disparado para o final da lista
+        setLeads(prev => [
+          ...prev.filter(l => l.id !== lead.id),
+          data,
+        ]);
       }
     } catch (err) {
       console.error("Erro ao atualizar status manual", err);
