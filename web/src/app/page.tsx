@@ -45,8 +45,22 @@ export default function LeadsPage() {
 
     const leadsSubscription = supabase
       .channel('public:leads')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
-        fetchLeads();
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
+        setLeads(prev => [payload.new as any, ...prev]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
+        const updated = payload.new as any;
+        const dispatched = ['SENT', 'QUEUED', 'SENDING'].includes(updated.status_pipeline);
+        if (dispatched) {
+          // Move para o final — lead foi disparado
+          setLeads(prev => [...prev.filter(l => l.id !== updated.id), updated]);
+        } else {
+          // Atualiza no lugar sem mexer na ordem
+          setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
+        }
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, (payload) => {
+        setLeads(prev => prev.filter(l => l.id !== (payload.old as any).id));
       })
       .subscribe();
 
