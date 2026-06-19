@@ -56,6 +56,11 @@ export async function POST(req: Request) {
 
     const systemPrompt = basePrompt + examplesBlock;
 
+    // Saudação correta baseada no horário de Brasília
+    const nowBR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const hour = nowBR.getHours();
+    const saudacao = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+
     // Gerar mensagem com OpenAI usando o prompt customizado
     const userPrompt = `DADOS DO LEAD:
 - Nome: ${lead.name}
@@ -65,6 +70,10 @@ export async function POST(req: Request) {
 
 DADOS DO VENDEDOR (QUEM ESTÁ ENVIANDO A MENSAGEM):
 - Seu Nome: ${settingsData?.owner_name || 'Gustavo'}
+
+HORÁRIO ATUAL (BRASIL):
+- Hora atual: ${hour}h
+- Saudação OBRIGATÓRIA para usar no início da mensagem: "${saudacao}" (NÃO use outra saudação — não escreva "Bom dia" se for tarde, nem "Boa tarde" se for manhã)
 
 DADOS DA OFERTA (use essas informações caso o seu system prompt instrua, caso contrário ignore):
 - Produto: Landing Page profissional
