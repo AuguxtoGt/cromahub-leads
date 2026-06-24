@@ -59,7 +59,22 @@ export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead }: 
     return null;
   };
 
-  // Detecta tipo de link para as Redes
+  // Retorna o site real (exclui Instagram, Facebook e WhatsApp)
+  const getRealWebsite = (): string | null => {
+    if (!lead.website) return null;
+    const url = lead.website.toLowerCase();
+    if (
+      url.includes("instagram.com") ||
+      url.includes("facebook.com") ||
+      url.includes("wa.me") ||
+      url.includes("whatsapp")
+    ) return null;
+    // Garante que começa com http
+    const siteUrl = lead.website.startsWith("http") ? lead.website : `https://${lead.website}`;
+    return siteUrl;
+  };
+
+  // Detecta tipo de link para as Redes (redes sociais e outros)
   const getNetworkLinks = () => {
     const links: { type: string, url: string, label: string }[] = [];
     if (!lead.website) return links;
@@ -79,6 +94,7 @@ export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead }: 
   const networkLinks = getNetworkLinks();
   const mapsLink = getMapsLink();
   const waLink = getWhatsAppLink();
+  const siteLink = getRealWebsite();
 
   return (
     <>
@@ -160,6 +176,22 @@ export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead }: 
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${waLink ? "bg-green-500 hover:bg-green-600 text-white shadow-sm cursor-pointer" : "bg-slate-100 text-slate-300 cursor-not-allowed"}`}
               >
                 <WhatsAppIcon className="w-4 h-4" />
+              </a>
+
+              {/* Site — abre no navegador (apenas site real) */}
+              <a
+                href={siteLink || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={siteLink ? `Abrir site: ${siteLink}` : "Sem site"}
+                onClick={(e) => !siteLink && e.preventDefault()}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                  siteLink
+                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer"
+                    : "bg-slate-100 text-slate-300 cursor-not-allowed"
+                }`}
+              >
+                <Globe className="w-4 h-4" />
               </a>
             </div>
           </div>
@@ -292,6 +324,17 @@ export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead }: 
 
         {/* Footer Actions */}
         <div className="p-4 border-t border-border bg-muted/30 flex gap-3">
+          {siteLink && (
+            <a
+              href={siteLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors shadow-sm flex items-center justify-center gap-2 text-sm"
+            >
+              <Globe className="w-4 h-4" />
+              Abrir Site
+            </a>
+          )}
           {waLink && (
             <a
               href={waLink}

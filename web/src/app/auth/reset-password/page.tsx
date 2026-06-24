@@ -57,8 +57,8 @@ export default function ResetPasswordPage() {
     setIsLoading(false);
 
     setTimeout(() => {
-      router.push("/");
-    }, 3000);
+      router.push("/settings");
+    }, 2000);
   };
 
   if (success) {
