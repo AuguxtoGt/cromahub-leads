@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
+import { getDbClient } from '@/lib/supabase-api';
 
 // GET /api/follow-up — Retorna leads enviados há mais de 24h que não responderam
 export async function GET(req: Request) {
   try {
+    const supabase = await getDbClient(req);
     const { searchParams } = new URL(req.url);
     const limitParam = searchParams.get('limit') || '50';
     const limit = parseInt(limitParam);
@@ -28,13 +29,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ leads: leads || [], count: (leads || []).length });
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Follow Up GET Error:', error);
+    return NextResponse.json({ error: 'Erro interno na listagem de follow-up' }, { status: 500 });
   }
 }
 
 // PATCH /api/follow-up — Marca lead como FOLLOW_UP_SENT
 export async function PATCH(req: Request) {
   try {
+    const supabase = await getDbClient(req);
     const { lead_id, success, error_message } = await req.json();
 
     if (!lead_id) {
@@ -60,6 +63,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ success: true, lead: data });
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Follow Up POST Error:', error);
+    return NextResponse.json({ error: 'Erro interno ao atualizar status de follow-up' }, { status: 500 });
   }
 }

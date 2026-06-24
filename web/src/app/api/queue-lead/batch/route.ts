@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
+import { getDbClient } from '@/lib/supabase-api';
 
 // POST /api/queue-lead/batch — Puxa leads da fila em lote (usado pelo n8n a cada hora)
 export async function POST(req: Request) {
   try {
+    const supabase = await getDbClient(req);
     const { searchParams } = new URL(req.url);
     const limitParam = searchParams.get('limit') || '50';
     const limit = parseInt(limitParam);
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ leads, count: leads.length });
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Queue Lead Batch Error:', error);
+    return NextResponse.json({ error: 'Erro interno no processamento do lote' }, { status: 500 });
   }
 }

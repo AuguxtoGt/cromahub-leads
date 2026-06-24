@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
+import { getDbClient } from '@/lib/supabase-api';
 import { z } from 'zod';
 import { checkRateLimit } from '@/utils/rate-limit';
 
@@ -16,6 +16,8 @@ export async function POST(req: Request) {
     if (!rateLimit.success) {
       return NextResponse.json({ error: rateLimit.message }, { status: 429 });
     }
+
+    const supabase = await getDbClient(req);
 
     const body = await req.json();
     const parsed = schema.safeParse(body);
@@ -163,6 +165,6 @@ IMPORTANTE: Você deve retornar APENAS um objeto JSON com duas chaves exatas:
 
   } catch (error: any) {
     console.error('AI Message Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno ao gerar a mensagem' }, { status: 500 });
   }
 }

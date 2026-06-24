@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Save, Sparkles, Loader2, RotateCcw, Plus, Trash2, History, ChevronDown, ChevronUp, ThumbsUp, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 
 const DEFAULT_PROMPT = `Você é um vendedor consultivo especialista em presença digital para pequenos negócios. Sua missão é abordar donos de empresas locais que ainda não têm site próprio e apresentar nossa oferta de forma natural, humana e persuasiva.
 
@@ -94,10 +95,11 @@ export default function SettingsPage() {
       setHistory(updatedHistory);
       setSettings(s => ({ ...s, version: s.version + 1 }));
       setSaved(true);
+      toast.success("Configurações salvas com sucesso!");
       setTimeout(() => setSaved(false), 3000);
     } else {
       console.error("Save error:", error);
-      alert("Erro ao salvar: " + error.message);
+      toast.error("Erro ao salvar: " + error.message);
     }
     setIsSaving(false);
   };
@@ -153,12 +155,12 @@ export default function SettingsPage() {
         setFeedback("");
         // Recarrega o histórico para pegar a versão que foi salva pela API
         fetchSettings();
-        alert("Prompt melhorado e salvo com sucesso! Clique em 'Gerar Prévia' para ver o novo resultado.");
+        toast.success("Prompt melhorado e salvo com sucesso!");
       } else {
-        alert("Erro ao melhorar prompt: " + data.error);
+        toast.error("Erro ao melhorar prompt: " + data.error);
       }
     } catch (error) {
-      alert("Erro de conexão.");
+      toast.error("Erro de conexão.");
     } finally {
       setIsImproving(false);
     }
@@ -497,7 +499,6 @@ export default function SettingsPage() {
 }
 
 function SecuritySection() {
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
@@ -540,13 +541,14 @@ function SecuritySection() {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
 
     if (error) {
-      setErrorMsg("Erro ao atualizar senha: " + error.message);
+      toast.error("Erro ao atualizar senha: " + error.message);
     } else {
-      setSuccessMsg("✓ Senha alterada com sucesso!");
-      setCurrentPassword("");
+      toast.success("Senha alterada com sucesso!");
       setNewPassword("");
       setConfirmPassword("");
-      setTimeout(() => setSuccessMsg(""), 5000);
+      // Logout from other devices
+      await supabase.auth.signOut({ scope: 'others' });
+      toast.info("Outras sessões foram desconectadas.");
     }
 
     setIsChanging(false);
@@ -633,19 +635,7 @@ function SecuritySection() {
           </div>
         </div>
 
-        {errorMsg && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-            {errorMsg}
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 font-medium">
-            {successMsg}
-          </div>
-        )}
-
-        <div className="flex justify-end">
+        <div className="flex justify-end mt-6">
           <button
             type="submit"
             disabled={isChanging || !newPassword || !confirmPassword}

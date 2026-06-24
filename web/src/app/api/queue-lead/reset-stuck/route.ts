@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
+import { getDbClient } from '@/lib/supabase-api';
 
 // POST /api/queue-lead/reset-stuck
 // Reseta leads presos em SENDING por mais de 30 min de volta para QUEUED.
 // Chamado automaticamente pelo n8n no início de cada execução do Fluxo 1.
-export async function POST() {
+export async function POST(req: Request) {
   try {
+    const supabase = await getDbClient(req);
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
     const { data, error } = await supabase
@@ -16,7 +17,8 @@ export async function POST() {
       .select('id, name');
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('Reset Stuck Error:', error);
+      return NextResponse.json({ error: 'Erro ao resetar leads na base de dados' }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -25,6 +27,7 @@ export async function POST() {
       message: `${data?.length ?? 0} leads resetados de SENDING para QUEUED`,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('Reset Stuck Exception:', err);
+    return NextResponse.json({ error: 'Erro interno ao resetar leads' }, { status: 500 });
   }
 }

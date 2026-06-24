@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
+import { getDbClient } from '@/lib/supabase-api';
+import { checkRateLimit } from '@/utils/rate-limit';
 
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
@@ -8,6 +9,14 @@ const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export async function POST(req: Request) {
   try {
+    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+    const rateLimit = await checkRateLimit(ip);
+    if (!rateLimit.success) {
+      return NextResponse.json({ error: rateLimit.message }, { status: 429 });
+    }
+
+    const supabase = await getDbClient(req);
+
     const { keyword, location, filterNoWebsite } = await req.json();
     
     if (!keyword || !location) {
@@ -161,6 +170,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('Extraction Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno durante a extração' }, { status: 500 });
   }
 }

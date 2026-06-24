@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { Toaster } from 'sonner';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CromaHUB Leads",
-  description: "Sistema Autônomo de Prospecção",
+  title: "CromaHUB Leads | Prospecção Inteligente",
+  description: "Sistema Autônomo de Prospecção para Agências e Consultores",
 };
 
 export default function RootLayout({
@@ -30,10 +31,11 @@ export default function RootLayout({
         <Sidebar />
         <div className="flex-1 ml-64 flex flex-col min-h-screen">
           <Header />
-          <main className="flex-1 p-8 overflow-auto">
+          <main className="flex-1 p-8 overflow-auto relative">
             {children}
           </main>
         </div>
+        <Toaster position="bottom-right" richColors theme="light" />
       </body>
     </html>
   );

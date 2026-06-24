@@ -15,7 +15,7 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+      <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm border border-gray-100 animate-fade-in-up opacity-0">
 
         {/* Logo / Header */}
         <div className="text-center mb-8">

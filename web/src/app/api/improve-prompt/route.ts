@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
+import { getDbClient } from '@/lib/supabase-api';
 import { z } from 'zod';
 import { checkRateLimit } from '@/utils/rate-limit';
 
@@ -18,6 +18,8 @@ export async function POST(req: Request) {
     if (!rateLimit.success) {
       return NextResponse.json({ error: rateLimit.message }, { status: 429 });
     }
+
+    const supabase = await getDbClient(req);
 
     const body = await req.json();
     const parsed = schema.safeParse(body);
@@ -123,6 +125,6 @@ Com base nesse feedback, reescreva o prompt para que o agente melhore nas próxi
 
   } catch (error: any) {
     console.error('Improve Prompt Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno ao melhorar o prompt' }, { status: 500 });
   }
 }

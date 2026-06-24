@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
+import { getDbClient } from '@/lib/supabase-api';
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
@@ -14,6 +14,7 @@ export async function POST(req: Request) {
   }
 
   try {
+    const supabase = await getDbClient(req);
     const { chat_id, remote_jid, text } = await req.json();
 
     if (!remote_jid || !text) {
@@ -89,6 +90,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, message_id: data?.key?.id });
   } catch (error: any) {
     console.error('Send Message Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno ao enviar a mensagem' }, { status: 500 });
   }
 }

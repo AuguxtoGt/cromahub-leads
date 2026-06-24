@@ -339,8 +339,9 @@ export async function POST(req: Request) {
     const authHeader = req.headers.get('apikey');
     console.log('[Webhook Evolution] Recebendo requisição...', { url: req.url, apikey: authHeader ? '***' : 'missing' });
 
-    if (process.env.EVOLUTION_WEBHOOK_KEY && authHeader !== process.env.EVOLUTION_WEBHOOK_KEY) {
-      console.log('[Webhook Evolution] FALHA DE AUTENTICAÇÃO: API Key inválida.');
+    const webhookKey = process.env.EVOLUTION_WEBHOOK_KEY;
+    if (!webhookKey || authHeader !== webhookKey) {
+      console.log('[Webhook Evolution] FALHA DE AUTENTICAÇÃO: API Key inválida ou não configurada.');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

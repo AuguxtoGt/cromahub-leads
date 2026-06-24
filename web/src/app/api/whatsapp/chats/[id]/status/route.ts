@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
+import { getDbClient } from '@/lib/supabase-api';
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabase = await getDbClient(request);
     const { id } = await params;
     const { status } = await request.json();
     
@@ -24,6 +25,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ success: true, chat: data });
   } catch (error: any) {
     console.error('Chat status update error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno ao atualizar status do chat' }, { status: 500 });
   }
 }

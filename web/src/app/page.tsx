@@ -4,14 +4,16 @@ import { useState, useEffect, useRef } from "react";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { supabase } from "@/lib/supabase";
 import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import type { Lead } from "@/types/database";
 
 type SortField = "created_at" | "name" | "rating";
 type SortDir = "desc" | "asc";
 type FilterStatus = "ALL" | "NEW" | "READY" | "QUEUED" | "SENT" | "FAILED";
 
 export default function LeadsPage() {
-  const [selectedLead, setSelectedLead] = useState<any>(null);
-  const [leads, setLeads] = useState<any[]>([]);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingLeadId, setLoadingLeadId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -62,7 +64,11 @@ export default function LeadsPage() {
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, (payload) => {
         setLeads(prev => prev.filter(l => l.id !== (payload.old as any).id));
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          toast.error('Conexão em tempo real perdida. Atualize a página.', { duration: 10000 });
+        }
+      });
 
     return () => {
       supabase.removeChannel(leadsSubscription);
@@ -109,11 +115,12 @@ export default function LeadsPage() {
       const data = await res.json();
       if (data.success) {
         setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
+        toast.success("Mensagem IA gerada!");
       } else {
-        alert('Erro ao gerar mensagem: ' + data.error);
+        toast.error('Erro ao gerar mensagem: ' + data.error);
       }
     } catch (err) {
-      alert('Erro de conexão com a IA.');
+      toast.error('Erro de conexão com a IA.');
     } finally {
       setLoadingLeadId(null);
     }
@@ -135,9 +142,12 @@ export default function LeadsPage() {
           ...prev.filter(l => l.id !== lead.id),
           data.lead,
         ]);
+        toast.success("Lead adicionado à fila!");
+      } else {
+        toast.error("Erro ao enfileirar lead: " + (data.error || 'Desconhecido'));
       }
     } catch (err) {
-      alert('Erro ao enfileirar lead.');
+      toast.error('Erro ao enfileirar lead.');
     } finally {
       setLoadingLeadId(null);
     }
@@ -149,24 +159,33 @@ export default function LeadsPage() {
     const message = encodeURIComponent(lead.ai_message || lead.copy_gerada || '');
     window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
 
-    try {
-      const { data, error } = await supabase
-        .from('leads')
-        .update({ status_pipeline: 'SENT' })
-        .eq('id', lead.id)
-        .select()
-        .single();
-        
-      if (!error && data) {
-        // Move o lead disparado para o final da lista
-        setLeads(prev => [
-          ...prev.filter(l => l.id !== lead.id),
-          data,
-        ]);
+    toast('Mensagem enviada com sucesso?', {
+      description: 'Isso atualizará o status do lead para "Enviado".',
+      action: {
+        label: 'Sim, atualizar',
+        onClick: async () => {
+          try {
+            const { data, error } = await supabase
+              .from('leads')
+              .update({ status_pipeline: 'SENT' })
+              .eq('id', lead.id)
+              .select()
+              .single();
+              
+            if (!error && data) {
+              setLeads(prev => [
+                ...prev.filter(l => l.id !== lead.id),
+                data,
+              ]);
+              toast.success("Status atualizado!");
+            }
+          } catch (err) {
+            console.error("Erro ao atualizar status manual", err);
+            toast.error("Erro ao atualizar status.");
+          }
+        }
       }
-    } catch (err) {
-      console.error("Erro ao atualizar status manual", err);
-    }
+    });
   };
 
   const handleDeleteLead = async (e: React.MouseEvent, lead: any) => {
@@ -181,8 +200,9 @@ export default function LeadsPage() {
 
       if (!error) {
         setLeads(prev => prev.filter(l => l.id !== lead.id));
+        toast.success("Lead apagado permanentemente.");
       } else {
-        alert('Erro ao apagar lead.');
+        toast.error('Erro ao apagar lead.');
       }
     } catch (err) {
       console.error('Erro ao apagar lead:', err);
@@ -196,7 +216,7 @@ export default function LeadsPage() {
       : leads.filter(l => l.status_pipeline === 'SENT');
 
     if (targetLeads.length === 0) {
-      alert('Nenhum lead encontrado para apagar.');
+      toast.warning('Nenhum lead encontrado para apagar.');
       return;
     }
     if (!window.confirm(`Apagar ${targetLeads.length} leads permanentemente? Esta ação não pode ser desfeita.`)) return;
@@ -209,8 +229,9 @@ export default function LeadsPage() {
 
     if (!error) {
       setLeads(prev => prev.filter(l => !ids.includes(l.id)));
+      toast.success(`${targetLeads.length} leads apagados.`);
     } else {
-      alert('Erro ao apagar leads em massa.');
+      toast.error('Erro ao apagar leads em massa.');
     }
 
     setTimeout(() => setIsBatchProcessing(false), 500);
@@ -222,7 +243,7 @@ export default function LeadsPage() {
     
     const cleanPhone = newLeadData.phone.replace(/\D/g, '');
     if (cleanPhone.length < 10) {
-      alert("Por favor, digite um número válido com DDD.");
+      toast.warning("Por favor, digite um número de telefone válido com DDD.");
       return;
     }
 
@@ -244,8 +265,9 @@ export default function LeadsPage() {
       setLeads(prev => [data, ...prev]);
       setIsAddModalOpen(false);
       setNewLeadData({ name: '', phone: '' });
+      toast.success("Lead adicionado com sucesso!");
     } catch (err: any) {
-      alert('Erro ao salvar lead: ' + err.message);
+      toast.error('Erro ao salvar lead: ' + err.message);
     } finally {
       setIsSavingLead(false);
     }
@@ -264,7 +286,7 @@ export default function LeadsPage() {
     const targetLeads = count === 'ALL' ? filteredLeads : filteredLeads.slice(0, count as number);
     
     if (targetLeads.length === 0) {
-      alert(`Nenhum lead com status ${targetStatus} disponível para gerar mensagem.`);
+      toast.warning(`Nenhum lead com status ${targetStatus} disponível para gerar mensagem.`);
       return;
     }
     
@@ -272,23 +294,30 @@ export default function LeadsPage() {
     setBatchProgress({ current: 0, total: targetLeads.length, type: 'AI' });
     
     let processedCount = 0;
-    for (const lead of targetLeads) {
-      try {
-        const res = await fetch('/api/ai-message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lead_id: lead.id }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
+    const chunkSize = 5; // Process 5 leads in parallel
+    for (let i = 0; i < targetLeads.length; i += chunkSize) {
+      const chunk = targetLeads.slice(i, i + chunkSize);
+      
+      await Promise.allSettled(chunk.map(async (lead) => {
+        try {
+          const res = await fetch('/api/ai-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lead_id: lead.id }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
+          }
+        } catch (err) {
+          console.error("Erro no batch IA", err);
         }
-      } catch (err) {
-        console.error("Erro no batch IA", err);
-      }
-      processedCount++;
-      setBatchProgress(prev => ({ ...prev, current: processedCount }));
+        processedCount++;
+        setBatchProgress(prev => ({ ...prev, current: processedCount }));
+      }));
     }
+    
+    toast.success(`${processedCount} mensagens geradas!`);
     
     setTimeout(() => setIsBatchProcessing(false), 1000);
   };
@@ -299,7 +328,7 @@ export default function LeadsPage() {
     const targetLeads = count === 'ALL' ? readyLeads : readyLeads.slice(0, count);
 
     if (targetLeads.length === 0) {
-      alert("Nenhum lead com mensagem pronta disponível.");
+      toast.warning("Nenhum lead com mensagem pronta disponível.");
       return;
     }
     
@@ -343,8 +372,9 @@ export default function LeadsPage() {
         
       if (!error) {
         setLeads(prev => prev.map(l => l.status_pipeline === 'QUEUED' ? { ...l, status_pipeline: 'READY' } : l));
+        toast.success("Fila esvaziada com sucesso.");
       } else {
-        alert("Erro ao limpar fila.");
+        toast.error("Erro ao limpar fila.");
       }
     } catch (err) {
       console.error(err);
@@ -375,7 +405,7 @@ export default function LeadsPage() {
       }
       if (filterStatus !== "ALL") {
         const status = l.status_pipeline || "NEW";
-        if (filterStatus === "NEW" && status !== "NEW" && status !== null && status !== undefined && status !== "") return false;
+        if (filterStatus === "NEW" && status !== "NEW" && status !== null && status !== undefined) return false;
         if (filterStatus !== "NEW" && status !== filterStatus) return false;
       }
       if (filterHasWebsite === "YES" && !l.website) return false;
@@ -664,9 +694,19 @@ export default function LeadsPage() {
                     </div>
                     <div className="flex flex-col truncate pr-2">
                       <span className="font-medium text-foreground truncate">{lead.name}</span>
-                      <span className="text-xs text-muted-foreground truncate">
-                        {lead.website ? 'Tem site' : 'Sem site'}
-                      </span>
+                      {lead.website ? (
+                        <a 
+                          href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-xs text-blue-500 hover:underline truncate" 
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {lead.website.replace(/^https?:\/\/(www\.)?/, '')}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground truncate">Sem site</span>
+                      )}
                     </div>
                   </div>
 

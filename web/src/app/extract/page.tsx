@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MapPin, Search, Play, Loader2, Lightbulb } from "lucide-react";
 import { NichesModal } from "@/components/ui/NichesModal";
+import { toast } from "sonner";
 
 export default function ExtractPage() {
   const [keyword, setKeyword] = useState("");
@@ -21,6 +22,7 @@ export default function ExtractPage() {
   const handleExtract = async () => {
     if (!keyword || !location) {
       addLog("Erro: Preencha o nicho e a localização.", "error");
+      toast.error("Preencha o nicho e a localização.");
       return;
     }
 
@@ -38,6 +40,7 @@ export default function ExtractPage() {
 
       if (!res.ok) {
         addLog(data.error || "Erro desconhecido na extração", "error");
+        toast.error("Falha na extração. Verifique o console.");
         if (data.google_http_code) {
           addLog(`HTTP ${data.google_http_code} — Status Google: ${data.google_status}`, "error");
         }
@@ -51,9 +54,11 @@ export default function ExtractPage() {
       addLog(`🏁 EXTRAÇÃO CONCLUÍDA COM SUCESSO!`, "success");
       addLog(`📊 TOTAL EXTRAÍDO AGORA: ${data.leads?.length || 0} leads processados.`, "success");
       addLog(data.message, "info");
+      toast.success(`${data.leads?.length || 0} leads extraídos com sucesso!`);
 
     } catch (err: any) {
       addLog(`Erro de conexão: ${err.message}`, "error");
+      toast.error("Erro de conexão.");
     } finally {
       setIsLoading(false);
     }
