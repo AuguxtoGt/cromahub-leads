@@ -6,25 +6,35 @@ import { supabase } from "@/lib/supabase";
 import { Save, Sparkles, Loader2, RotateCcw, Plus, Trash2, History, ChevronDown, ChevronUp, ThumbsUp, Lock, Eye, EyeOff, ShieldCheck, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
-const DEFAULT_PROMPT = `Você é um vendedor consultivo especialista em presença digital para pequenos negócios. Sua missão é abordar donos de empresas locais que ainda não têm site próprio e apresentar nossa oferta de forma natural, humana e persuasiva.
+const DEFAULT_PROMPT = `Você é um assistente de prospecção via WhatsApp. Sua única função é gerar UMA frase curta e amigável perguntando se o número pertence à empresa em questão.
 
-Sobre a oferta:
-- Produto: Landing Page profissional
-- Preço: R$297 (pagamento único)
-- Prazo de entrega: até 24 horas
-- Diferenciais: site no ar em 1 dia, design profissional, aparece no Google, link de WhatsApp integrado
+REGRA DE HORÁRIO:
+Verifique o seu relógio interno (horário de Brasília).
+- Se for de manhã, use saudações com "Bom dia".
+- Se for de tarde, use saudações com "Boa tarde".
+- Se não for nem um nem outro, ou se estiver na dúvida, use "Olá" ou "Oi".
 
-Regras de ouro:
-1. Comece de forma descontraída, como um amigo que quer ajudar
-2. Mencione o nome da empresa para personalizar (use {{nome_empresa}})
-3. Cite o nicho do negócio naturalmente para mostrar que conhece o mercado
-4. Explique 1 ou 2 benefícios concretos (ex: "clientes que pesquisam no Google vão te encontrar")
-5. Mencione o preço e prazo de forma confiante, não esconda
-6. Termine com uma pergunta aberta ou CTA leve
-7. Máximo 3 parágrafos curtos
-8. Tom informal mas profissional
-9. Sem emojis excessivos (máximo 2)
-10. NÃO minta sobre entregas ou resultados garantidos`;
+VARIAÇÕES OBRIGATÓRIAS (Alterne entre esses estilos):
+1. "[Saudação], é da empresa {{nome_empresa}}?"
+2. "[Saudação], tudo bem? É da empresa {{nome_empresa}}?"
+3. "[Saudação], tudo joia? É da empresa {{nome_empresa}}?"
+4. "Oi, tudo bem? É da empresa {{nome_empresa}}?"
+5. "Olá, é da empresa {{nome_empresa}}?"
+
+INSTRUÇÕES FINAIS:
+- Não escreva absolutamente MAIS NADA na resposta. Nenhuma explicação, nenhuma introdução, apenas a frase gerada.
+- Sempre substitua {{nome_empresa}} pelo nome da empresa.`;
+
+const DEFAULT_FOLLOW_UP_PROMPT = `Você é um assistente de prospecção. Sua única função é gerar UMA mensagem curta de follow-up (resgate) para ser enviada 24h depois caso o cliente não responda à primeira mensagem.
+
+VARIAÇÕES OBRIGATÓRIAS (Alterne entre esses estilos):
+1. "Oi, não tive retorno, é da empresa {{nome_empresa}}?"
+2. "Olá, vi que não respondeu, é da empresa {{nome_empresa}}?"
+3. "Oi tudo bem? Não tive retorno na mensagem anterior, é da empresa {{nome_empresa}}?"
+
+INSTRUÇÕES FINAIS:
+- Não escreva absolutamente MAIS NADA na resposta.
+- Sempre substitua {{nome_empresa}} pelo nome da empresa.`;
 
 interface Example { id: string; text: string; label: string; }
 interface PromptVersion { version: number; prompt: string; saved_at: string; }
@@ -32,7 +42,9 @@ interface PromptVersion { version: number; prompt: string; saved_at: string; }
 export default function SettingsPage() {
   const router = useRouter();
   const [settings, setSettings] = useState({
-    system_prompt: "",
+    system_prompt: DEFAULT_PROMPT,
+    follow_up_prompt: DEFAULT_FOLLOW_UP_PROMPT,
+    follow_up_enabled: true,
     offer_name: "",
     offer_price: "",
     offer_deadline: "",
@@ -61,7 +73,9 @@ export default function SettingsPage() {
     const { data } = await supabase.from("settings").select("*").single();
     if (data) {
       setSettings({
-        system_prompt: data.system_prompt || "",
+        system_prompt: data.system_prompt || DEFAULT_PROMPT,
+        follow_up_prompt: data.follow_up_prompt || DEFAULT_FOLLOW_UP_PROMPT,
+        follow_up_enabled: data.follow_up_enabled !== false, // default true
         offer_name: data.offer_name || "",
         offer_price: data.offer_price || "",
         offer_deadline: data.offer_deadline || "",
@@ -361,6 +375,47 @@ export default function SettingsPage() {
           className="w-full px-4 py-3 border border-border rounded-lg text-sm font-mono outline-none focus:border-primary transition-all resize-none leading-relaxed bg-white"
           placeholder="Escreva aqui as instruções do seu agente de IA..."
         />
+        
+        <div className="mt-4 pt-4 border-t border-border">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-foreground flex items-center gap-2">
+              <History className="w-5 h-5 text-primary" /> Prompt de Follow-up
+            </h3>
+            
+            <label className="flex items-center gap-2 cursor-pointer">
+              <span className="text-sm text-muted-foreground">{settings.follow_up_enabled ? 'Ativado' : 'Desativado'}</span>
+              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${settings.follow_up_enabled ? 'bg-primary' : 'bg-slate-300'}`}>
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={settings.follow_up_enabled}
+                  onChange={(e) => setSettings(s => ({ ...s, follow_up_enabled: e.target.checked }))}
+                />
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.follow_up_enabled ? 'translate-x-4' : 'translate-x-1'}`} />
+              </div>
+            </label>
+          </div>
+          
+          <p className="text-sm text-muted-foreground mb-4">
+            Instruções exclusivas para a mensagem de resgate (enviada caso o lead não responda a primeira mensagem).
+          </p>
+
+          {settings.follow_up_enabled ? (
+            <textarea
+              value={settings.follow_up_prompt}
+              onChange={e => setSettings(s => ({ ...s, follow_up_prompt: e.target.value }))}
+              rows={8}
+              className="w-full px-4 py-3 border border-border rounded-lg text-sm font-mono outline-none focus:border-primary transition-all resize-none leading-relaxed bg-white"
+              placeholder="Escreva aqui as instruções do follow-up..."
+            />
+          ) : (
+            <div className="bg-slate-50 border border-border border-dashed rounded-lg p-6 text-center text-muted-foreground">
+              <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm font-medium">O Follow-up automático está desativado.</p>
+              <p className="text-xs mt-1">Ative o botão acima para permitir que a IA gere mensagens de resgate.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Exemplos de Mensagens que Funcionaram */}

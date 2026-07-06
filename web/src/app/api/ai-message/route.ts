@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     // Buscar o prompt customizado e exemplos das configurações do usuário (RLS cuida disso)
     const { data: settingsData } = await supabase
       .from('settings')
-      .select('system_prompt, offer_price, offer_deadline, message_examples, owner_name')
+      .select('system_prompt, follow_up_prompt, follow_up_enabled, offer_price, offer_deadline, message_examples, owner_name')
       .limit(1)
       .single();
 
@@ -83,11 +83,17 @@ DADOS DA OFERTA (use essas informações caso o seu system prompt instrua, caso 
 - Prazo: ${offerDeadline}
 
 Siga RIGOROSAMENTE as regras e restrições do seu System Prompt (especialmente sobre limite de tamanho e tom de voz).
-IMPORTANTE: Você deve retornar APENAS um objeto JSON com duas chaves exatas:
+${settingsData?.follow_up_enabled !== false ? `IMPORTANTE: Você deve retornar APENAS um objeto JSON com duas chaves exatas:
 {
-  "primeira_mensagem": "O texto da mensagem de prospecção",
-  "mensagem_follow_up": "Uma mensagem de 1 a 2 frases curtas, enviada 24h depois caso ele não responda, perguntando se ele conseguiu ver a mensagem e sugerindo mostrar um exemplo"
-}`;
+  "primeira_mensagem": "O texto da mensagem de prospecção principal",
+  "mensagem_follow_up": "A mensagem de follow-up seguindo a regra abaixo"
+}
+
+REGRA PARA A MENSAGEM DE FOLLOW-UP:
+${settingsData?.follow_up_prompt || "Uma mensagem de 1 a 2 frases curtas, enviada 24h depois caso ele não responda, perguntando se ele conseguiu ver a mensagem e sugerindo mostrar um exemplo"}` : `IMPORTANTE: Você deve retornar APENAS um objeto JSON com uma chave exata:
+{
+  "primeira_mensagem": "O texto da mensagem de prospecção principal"
+}`}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
