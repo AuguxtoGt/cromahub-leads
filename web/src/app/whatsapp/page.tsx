@@ -15,6 +15,8 @@ import {
   Image as ImageIcon,
   FileText,
   Trash2,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 
 // ─── Tipos ──────────────────────────────────────────────────
@@ -125,6 +127,8 @@ function formatChatTime(dateStr: string) {
 // ─────────────────────────────────────────────────────────────
 export default function WhatsAppPage() {
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'checking'>('checking');
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [isLoadingQr, setIsLoadingQr] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
@@ -193,6 +197,27 @@ export default function WhatsAppPage() {
     };
     checkConnection();
 
+    // ─── Polling de status a cada 60s ─────────────────────────
+    const pollStatus = async () => {
+      try {
+        const res = await fetch('/api/whatsapp/status');
+        const data = await res.json();
+        setConnectionStatus(data.connected ? 'online' : 'offline');
+        setLastChecked(new Date());
+        // Se ficou offline, atualiza o estado principal também
+        if (!data.connected) setIsConnected(false);
+      } catch {
+        setConnectionStatus('offline');
+      }
+    };
+
+    // Espera 3s para o checkConnection inicial terminar antes de começar o polling
+    const pollTimeout = setTimeout(() => {
+      pollStatus(); // primeira verificação
+      const interval = setInterval(pollStatus, 60_000); // depois a cada 60s
+      return () => clearInterval(interval);
+    }, 3000);
+
     // Realtime: escuta mudanças na tabela de chats
     const chatSub = supabase
       .channel("realtime-whatsapp-chats")
@@ -220,6 +245,7 @@ export default function WhatsAppPage() {
       .subscribe();
 
     return () => {
+      clearTimeout(pollTimeout);
       supabase.removeChannel(chatSub);
     };
   }, [loadChats]);
@@ -448,9 +474,29 @@ export default function WhatsAppPage() {
             >
               {isDisconnecting ? "Saindo..." : "Sair"}
             </button>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-green-600 font-medium">Conectado</span>
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+
+            {/* Indicador de status em tempo real */}
+            <div className="flex items-center gap-1.5" title={lastChecked ? `Última verificação: ${lastChecked.toLocaleTimeString('pt-BR')}` : 'Verificando...'}>
+              {connectionStatus === 'online' && (
+                <>
+                  <Wifi className="w-3.5 h-3.5 text-green-600" />
+                  <span className="text-xs text-green-600 font-medium">Conectado</span>
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                </>
+              )}
+              {connectionStatus === 'offline' && (
+                <>
+                  <WifiOff className="w-3.5 h-3.5 text-red-500" />
+                  <span className="text-xs text-red-500 font-medium">Desconectado</span>
+                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                </>
+              )}
+              {connectionStatus === 'checking' && (
+                <>
+                  <RefreshCcw className="w-3 h-3 text-slate-400 animate-spin" />
+                  <span className="text-xs text-slate-400">Verificando</span>
+                </>
+              )}
             </div>
           </div>
         </div>
