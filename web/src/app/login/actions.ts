@@ -16,9 +16,33 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
-    redirect('/login?message=Could not authenticate user')
+    redirect('/login?message=E-mail+ou+senha+inválidos')
   }
 
+  revalidatePath('/', 'layout')
+  redirect('/')
+}
+
+export async function register(formData: FormData) {
+  const supabase = await createClient()
+
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+
+  if (!email || !password) {
+    redirect('/login?message=Preencha+todos+os+campos&tab=register')
+  }
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+  })
+
+  if (error) {
+    redirect(`/login?message=${encodeURIComponent(error.message)}&tab=register`)
+  }
+
+  // Se tudo der certo, redireciona para a home (o auth state mudará)
   revalidatePath('/', 'layout')
   redirect('/')
 }

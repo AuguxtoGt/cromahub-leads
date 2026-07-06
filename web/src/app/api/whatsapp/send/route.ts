@@ -3,7 +3,6 @@ import { getDbClient } from '@/lib/supabase-api';
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
-const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || 'cromahub';
 
 export async function POST(req: Request) {
   if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
@@ -15,6 +14,12 @@ export async function POST(req: Request) {
 
   try {
     const supabase = await getDbClient(req);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+    const INSTANCE_NAME = `cromahub-${user.id}`;
+    
     const { chat_id, remote_jid, text } = await req.json();
 
     if (!remote_jid || !text) {

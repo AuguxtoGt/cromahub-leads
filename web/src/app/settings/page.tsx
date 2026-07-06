@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Save, Sparkles, Loader2, RotateCcw, Plus, Trash2, History, ChevronDown, ChevronUp, ThumbsUp, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Save, Sparkles, Loader2, RotateCcw, Plus, Trash2, History, ChevronDown, ChevronUp, ThumbsUp, Lock, Eye, EyeOff, ShieldCheck, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 const DEFAULT_PROMPT = `Você é um vendedor consultivo especialista em presença digital para pequenos negócios. Sua missão é abordar donos de empresas locais que ainda não têm site próprio e apresentar nossa oferta de forma natural, humana e persuasiva.
@@ -29,11 +30,12 @@ interface Example { id: string; text: string; label: string; }
 interface PromptVersion { version: number; prompt: string; saved_at: string; }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [settings, setSettings] = useState({
-    system_prompt: DEFAULT_PROMPT,
-    offer_name: "Landing Page Profissional",
-    offer_price: "297",
-    offer_deadline: "24 horas",
+    system_prompt: "",
+    offer_name: "",
+    offer_price: "",
+    offer_deadline: "",
     owner_name: "",
     owner_whatsapp: "",
     version: 1,
@@ -48,6 +50,7 @@ export default function SettingsPage() {
   const [previewFollowUp, setPreviewFollowUp] = useState("");
   const [testLeadName, setTestLeadName] = useState("Pet Shop Exemplo BH");
   const [showHistory, setShowHistory] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [addingExample, setAddingExample] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [isImproving, setIsImproving] = useState(false);
@@ -55,13 +58,13 @@ export default function SettingsPage() {
   useEffect(() => { fetchSettings(); }, []);
 
   const fetchSettings = async () => {
-    const { data } = await supabase.from("settings").select("*").eq("id", "default").single();
+    const { data } = await supabase.from("settings").select("*").single();
     if (data) {
       setSettings({
-        system_prompt: data.system_prompt || DEFAULT_PROMPT,
-        offer_name: data.offer_name || "Landing Page Profissional",
-        offer_price: data.offer_price || "297",
-        offer_deadline: data.offer_deadline || "24 horas",
+        system_prompt: data.system_prompt || "",
+        offer_name: data.offer_name || "",
+        offer_price: data.offer_price || "",
+        offer_deadline: data.offer_deadline || "",
         owner_name: data.owner_name || "",
         owner_whatsapp: data.owner_whatsapp || "",
         version: data.version || 1,
@@ -82,14 +85,26 @@ export default function SettingsPage() {
     };
     const updatedHistory = [newHistoryEntry, ...history].slice(0, 10); // Guarda últimas 10 versões
 
-    const { error } = await supabase.from("settings").upsert({
-      id: "default",
+    const { data: existing } = await supabase.from("settings").select("id").single();
+    const payload = {
       ...settings,
       version: settings.version + 1,
       message_examples: examples,
       prompt_history: updatedHistory,
       updated_at: new Date().toISOString(),
-    });
+    };
+
+    let error;
+    if (existing) {
+      const { error: updateError } = await supabase.from("settings").update(payload).eq("id", existing.id);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase.from("settings").insert({
+        id: crypto.randomUUID(),
+        ...payload
+      });
+      error = insertError;
+    }
 
     if (!error) {
       setHistory(updatedHistory);
@@ -187,6 +202,35 @@ export default function SettingsPage() {
     setShowHistory(false);
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("ATENÇÃO: Você está prestes a excluir sua conta. Isso apagará permanentemente todos os seus leads, configurações e histórico de mensagens. Esta ação NÃO pode ser desfeita. Tem certeza absoluta que deseja continuar?")) {
+      return;
+    }
+    
+    setIsDeletingAccount(true);
+    try {
+      const res = await fetch("/api/account/delete", { method: "DELETE" });
+      const data = await res.json();
+      
+      if (res.ok) {
+        toast.success("Conta excluída com sucesso.");
+        await supabase.auth.signOut();
+        router.push("/login");
+      } else {
+        toast.error("Erro ao excluir conta: " + (data.error || "Desconhecido"));
+      }
+    } catch (err) {
+      toast.error("Erro de conexão ao excluir conta.");
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
@@ -195,14 +239,23 @@ export default function SettingsPage() {
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">Configurações</h1>
           <p className="text-muted-foreground text-sm mt-1">Configure e treine seu agente de IA</p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-md font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-60 shadow-sm"
-        >
-          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saved ? "✓ Salvo!" : isSaving ? "Salvando..." : "Salvar"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-md font-medium text-sm hover:bg-red-100 transition-colors shadow-sm"
+          >
+            <LogOut className="w-4 h-4" />
+            Sair
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-md font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-60 shadow-sm"
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {saved ? "✓ Salvo!" : isSaving ? "Salvando..." : "Salvar"}
+          </button>
+        </div>
       </div>
 
       {/* Oferta */}
@@ -494,6 +547,9 @@ export default function SettingsPage() {
 
       {/* Segurança */}
       <SecuritySection />
+      
+      {/* Danger Zone */}
+      <DangerZone isDeletingAccount={isDeletingAccount} handleDeleteAccount={handleDeleteAccount} />
     </div>
   );
 }
@@ -646,6 +702,37 @@ function SecuritySection() {
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function DangerZone({ isDeletingAccount, handleDeleteAccount }: { isDeletingAccount: boolean, handleDeleteAccount: () => void }) {
+  return (
+    <div className="bg-red-50/50 border border-red-200 rounded-xl p-6 shadow-sm flex flex-col gap-5 mt-8">
+      <div className="border-b border-red-200 pb-3 flex items-center gap-2">
+        <Trash2 className="w-5 h-5 text-red-600" />
+        <div>
+          <h2 className="font-semibold text-red-700 text-lg">Zona de Perigo</h2>
+          <p className="text-sm text-red-600/80 mt-0.5">Ações destrutivas para sua conta.</p>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-4 rounded-lg border border-red-100">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">Excluir Conta</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Apaga permanentemente sua conta, leads, histórico de mensagens e configurações. Esta ação não pode ser desfeita.
+          </p>
+        </div>
+        <button
+          onClick={handleDeleteAccount}
+          disabled={isDeletingAccount}
+          className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md font-medium text-sm hover:bg-red-700 transition-colors disabled:opacity-60 shadow-sm"
+        >
+          {isDeletingAccount ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+          {isDeletingAccount ? "Excluindo..." : "Excluir Conta"}
+        </button>
+      </div>
     </div>
   );
 }

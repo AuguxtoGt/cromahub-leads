@@ -211,9 +211,11 @@ export default function LeadsPage() {
 
   const handleBatchDelete = async (targetStatus?: string) => {
     setShowBatchMenu(false);
-    const targetLeads = targetStatus
-      ? leads.filter(l => l.status_pipeline === targetStatus || (!l.status_pipeline && targetStatus === 'NEW'))
-      : leads.filter(l => l.status_pipeline === 'SENT');
+    const targetLeads = targetStatus === 'ALL'
+      ? leads
+      : targetStatus
+        ? leads.filter(l => l.status_pipeline === targetStatus || (!l.status_pipeline && targetStatus === 'NEW'))
+        : leads.filter(l => l.status_pipeline === 'SENT');
 
     if (targetLeads.length === 0) {
       toast.warning('Nenhum lead encontrado para apagar.');
@@ -499,6 +501,10 @@ export default function LeadsPage() {
                 <button onClick={() => handleBatchDelete('SENT')} className="w-full text-left px-3 py-2 text-sm text-red-700 hover:bg-red-50 transition-colors flex justify-between items-center font-medium">
                   <span>Apagar enviados</span>
                   <span className="text-xs text-red-400">{stats.enviado} leads</span>
+                </button>
+                <button onClick={() => handleBatchDelete('ALL')} className="w-full text-left px-3 py-2 text-sm text-red-700 hover:bg-red-50 transition-colors flex justify-between items-center font-medium">
+                  <span>Apagar todos os leads</span>
+                  <span className="text-xs text-red-400">{stats.total} leads</span>
                 </button>
               </div>
             )}

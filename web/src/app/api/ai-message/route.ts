@@ -39,11 +39,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 });
     }
 
-    // Buscar o prompt customizado e exemplos das configurações
+    // Buscar o prompt customizado e exemplos das configurações do usuário (RLS cuida disso)
     const { data: settingsData } = await supabase
       .from('settings')
       .select('system_prompt, offer_price, offer_deadline, message_examples, owner_name')
-      .eq('id', 'default')
+      .limit(1)
       .single();
 
     const basePrompt = settingsData?.system_prompt || `Você é um vendedor consultivo especialista em presença digital para pequenos negócios.`;

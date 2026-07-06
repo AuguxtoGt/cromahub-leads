@@ -1,15 +1,21 @@
 import { NextResponse } from 'next/server';
+import { getDbClient } from '@/lib/supabase-api';
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
-const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || 'cromahub';
 
-export async function POST() {
+export async function POST(req: Request) {
   if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
     return NextResponse.json({ error: 'Variáveis de ambiente da Evolution API não configuradas.' }, { status: 500 });
   }
 
   try {
+    const supabase = await getDbClient(req);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+    const INSTANCE_NAME = `cromahub-${user.id}`;
     // 1. Tentar criar a instância
     const createRes = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
       method: 'POST',
@@ -99,12 +105,19 @@ export async function POST() {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(req: Request) {
   if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
     return NextResponse.json({ error: 'Configurações ausentes' }, { status: 500 });
   }
 
   try {
+    const supabase = await getDbClient(req);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+    const INSTANCE_NAME = `cromahub-${user.id}`;
+
     // 1. Tentar fazer logout primeiro
     await fetch(`${EVOLUTION_API_URL}/instance/logout/${INSTANCE_NAME}`, {
       method: 'DELETE',

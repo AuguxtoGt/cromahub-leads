@@ -18,7 +18,8 @@ async function findOrCreateChat(
   remoteJid: string,
   pushName: string,
   fromMe: boolean,
-  content: string
+  content: string,
+  userId: string | null
 ) {
   const phoneNormalized = normalizePhone(remoteJid);
   if (!phoneNormalized) return null;
@@ -35,47 +36,61 @@ async function findOrCreateChat(
   }
 
   // 1ª tentativa: busca por phone_normalized (funciona após migration, imune ao 9º dígito)
-  let { data: chat, error: findError } = await supabase
+  let query = supabase
     .from('whatsapp_chats')
     .select('*')
     .ilike('phone_normalized', phoneCore)
     .order('last_message_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+
+  if (userId) {
+    query = query.eq('user_id', userId);
+  }
+
+  let { data: chat, error: findError } = await query.maybeSingle();
 
   // Se a coluna phone_normalized não existir ainda, busca pelo phone
   if (findError && findError.message?.includes('phone_normalized')) {
-    const res = await supabase
+    let query2 = supabase
       .from('whatsapp_chats')
       .select('*')
       .ilike('phone', phoneCore)
       .order('last_message_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+    
+    if (userId) query2 = query2.eq('user_id', userId);
+    
+    const res = await query2.maybeSingle();
     chat = res.data;
   }
 
   // 2ª tentativa: Se não encontrou por phone_normalized (ex: webhook de LID perdeu o senderPn), tenta pelo remote_jid exato
   if (!chat && remoteJid) {
-    const res = await supabase
+    let query3 = supabase
       .from('whatsapp_chats')
       .select('*')
       .eq('remote_jid', remoteJid)
       .order('last_message_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+      
+    if (userId) query3 = query3.eq('user_id', userId);
+    
+    const res = await query3.maybeSingle();
     chat = res.data;
   }
 
   // 3ª tentativa (Retrocompatibilidade e fallback extremo)
   if (!chat && phoneNormalized.length >= 8) {
-    const res = await supabase
+    let query4 = supabase
       .from('whatsapp_chats')
       .select('*')
       .ilike('phone', `%${phoneNormalized.slice(-8)}`)
       .order('last_message_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+      
+    if (userId) query4 = query4.eq('user_id', userId);
+    
+    const res = await query4.maybeSingle();
       
     if (res.data) {
       chat = res.data;
@@ -88,24 +103,29 @@ async function findOrCreateChat(
 
   if (!chat) {
     // Tenta achar o lead pelo número
-    const { data: lead } = await supabase
+    let queryLead = supabase
       .from('leads')
       .select('id, name')
       .ilike('phone', `%${phoneNormalized.slice(-9)}%`)
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+      
+    if (userId) queryLead = queryLead.eq('user_id', userId);
+    
+    const { data: lead } = await queryLead.maybeSingle();
 
     // Monta o payload de insert (resiliente: inclui phone_normalized se possível)
     const insertPayload: Record<string, any> = {
       remote_jid: remoteJid,
       phone: phoneNormalized,
-      phone_normalized: phoneNormalized, // aceito silenciosamente se a coluna não existir
+      phone_normalized: phoneCore,
       name: lead?.name || pushName || phoneNormalized,
-      lead_id: lead?.id || null,
       last_message_preview: previewText,
       last_message_at: new Date().toISOString(),
       unread_count: fromMe ? 0 : 1,
+      chat_status: 'UNANSWERED',
+      lead_id: lead?.id || null,
     };
+    if (userId) insertPayload.user_id = userId;
 
     const { data: newChat, error: chatError } = await supabase
       .from('whatsapp_chats')
@@ -347,6 +367,7 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     console.log('[Webhook Evolution] Body Event:', body.event);
+    const userId = body.instance ? body.instance.replace('cromahub-', '') : null;
 
     // ── Evento: nova mensagem recebida ou enviada pelo painel ────
     if (body.event === 'messages.upsert') {
@@ -386,7 +407,7 @@ export async function POST(req: Request) {
       // Espera aí, no saveMessage precisamos do remoteJid real da sessão do whatsapp para responder
       // Vamos passar o realJid para evitar duplicação, mas o rawRemoteJid para o banco se for LID?
       // O sendMessage aceita o rawRemoteJid (@lid).
-      const chat = await findOrCreateChat(realJid, pushName, fromMe, content);
+      const chat = await findOrCreateChat(realJid, pushName, fromMe, content, userId);
 
       if (chat) {
         // Se a gente resolveu o LID, atualizamos o remote_jid para o raw (o LID) para garantir que podemos responder?
@@ -450,7 +471,7 @@ export async function POST(req: Request) {
       }
 
       const { content, mediaType } = extractMessageContent(msgData);
-      const chat = await findOrCreateChat(realJid, '', true, content);
+      const chat = await findOrCreateChat(realJid, '', true, content, userId);
 
       if (chat) {
         if (rawRemoteJid.includes('@lid')) {
