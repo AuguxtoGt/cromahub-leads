@@ -524,29 +524,15 @@ export async function POST(req: Request) {
     // ── Evento: atualização de conexão ────────
     if (body.event === 'connection.update') {
       const state = body.data?.state;
-      console.log('[Webhook Evolution] Connection Update:', state, body.data?.statusReason);
+      const instanceName = body.instance || 'unknown';
+      console.log(`[Webhook Evolution] Connection Update: instance=${instanceName} state=${state} reason=${body.data?.statusReason}`);
 
-      if (state === 'close') {
-        const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || 'cromahub';
-        const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
-        const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
-
-        if (EVOLUTION_API_URL && EVOLUTION_API_KEY) {
-          console.log(`[Webhook Evolution] Instância ${INSTANCE_NAME} desconectada. Forçando exclusão para evitar limbo...`);
-          
-          // Tenta logout
-          await fetch(`${EVOLUTION_API_URL}/instance/logout/${INSTANCE_NAME}`, {
-            method: 'DELETE',
-            headers: { 'apikey': EVOLUTION_API_KEY }
-          });
-
-          // Deleta a instância
-          await fetch(`${EVOLUTION_API_URL}/instance/delete/${INSTANCE_NAME}`, {
-            method: 'DELETE',
-            headers: { 'apikey': EVOLUTION_API_KEY }
-          });
-        }
-      }
+      // IMPORTANTE: NÃO deletamos a instância ao receber 'close'.
+      // Desconexões temporárias (oscilação de internet, reinício do app no celular)
+      // são normais e a Evolution API reconecta automaticamente.
+      // Deletar a instância destruiria as chaves Signal (pre-keys) do Baileys,
+      // causando o erro "Aguardando mensagem" em todas as conversas futuras.
+      // O usuário pode forçar uma desconexão manual pelo painel se necessário.
     }
 
     return NextResponse.json({ success: true });
