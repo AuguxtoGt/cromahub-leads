@@ -48,34 +48,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ connected: true });
       }
 
-      // Se tiver 'close', vamos deletar e recriar
-      if (stateData?.instance?.state === 'close') {
-        await fetch(`${EVOLUTION_API_URL}/instance/delete/${INSTANCE_NAME}`, {
-          method: 'DELETE',
-          headers: { 'apikey': EVOLUTION_API_KEY }
-        });
-        
-        // Tenta criar de novo
-        await fetch(`${EVOLUTION_API_URL}/instance/create`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': EVOLUTION_API_KEY
-          },
-          body: JSON.stringify({
-            instanceName: INSTANCE_NAME,
-            qrcode: true,
-            integration: "WHATSAPP-BAILEYS",
-            webhook: {
-              enabled: true,
-              url: "https://leads.cromahub.cloud/api/webhooks/evolution",
-              byEvents: false,
-              base64: true,
-              events: ["MESSAGES_UPSERT", "SEND_MESSAGE", "MESSAGES_UPDATE", "CONNECTION_UPDATE"]
-            }
-          })
-        });
-      }
+      // Se tiver 'close', não fazemos nada aqui, 
+      // pois o bloco abaixo de 'connect' já lida com a reconexão 
+      // e geração de novo QR Code sem destruir as chaves de criptografia.
     }
 
     // 2. Conectar e tentar pegar o QR Code com retentativas (pois demora uns segundos)
