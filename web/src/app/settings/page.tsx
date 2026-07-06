@@ -154,6 +154,8 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           system_prompt: settings.system_prompt + examplesBlock,
+          follow_up_prompt: settings.follow_up_prompt,
+          follow_up_enabled: settings.follow_up_enabled,
           lead_name: testLeadName,
           offer_price: settings.offer_price,
           offer_deadline: settings.offer_deadline,
