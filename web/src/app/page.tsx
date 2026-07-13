@@ -560,15 +560,20 @@ export default function LeadsPage() {
           { title: "Total Leads", value: stats.total.toString(), icon: "🗂️" },
           { title: "Novos", value: stats.novo.toString(), icon: "✨" },
           { title: "Msg Pronta", value: stats.pronto.toString(), icon: "🤖" },
-          { title: stats.fila > 0 ? `Próximo: ${nextDispatch}` : "Na Fila", value: stats.fila.toString(), icon: "⏳" },
+          { title: "Na Fila", value: stats.fila.toString(), icon: "⏳", sublabel: `Próximo: ${nextDispatch}` },
           { title: "Enviados", value: stats.enviado.toString(), icon: "✅" },
         ].map((card, i) => (
-          <div key={i} className="bg-sidebar border border-border rounded-xl p-5 flex flex-col gap-2 shadow-sm">
+          <div key={i} className="bg-sidebar border border-border rounded-xl p-5 flex flex-col gap-1 shadow-sm">
             <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <span>{card.icon}</span>
               {card.title}
             </span>
-            <span className="text-3xl font-bold">{card.value}</span>
+            <div className="flex flex-col">
+              <span className="text-3xl font-bold">{card.value}</span>
+              {card.sublabel && (
+                <span className="text-xs text-muted-foreground font-medium mt-1">{card.sublabel}</span>
+              )}
+            </div>
           </div>
         ))}
       </div>
