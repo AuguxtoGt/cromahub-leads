@@ -8,6 +8,8 @@ import {
   HelpCircle
 } from 'lucide-react';
 
+import { WhatsAppStatusIndicator } from '@/components/WhatsAppStatusIndicator';
+
 const MENU_ITEMS = [
   { name: 'Leads', href: '/', icon: Users },
   { name: 'Extração', href: '/extract', icon: Search },
@@ -24,13 +26,14 @@ export function Sidebar() {
   return (
     <aside className="w-64 bg-sidebar border-r border-border h-screen flex flex-col fixed left-0 top-0">
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-border">
+      <div className="h-20 flex flex-col justify-center px-6 border-b border-border gap-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
             <span className="text-white font-bold text-sm">CH</span>
           </div>
           <span className="font-semibold text-lg">CromaHUB</span>
         </div>
+        <WhatsAppStatusIndicator />
       </div>
 
       {/* Main Menu */}
