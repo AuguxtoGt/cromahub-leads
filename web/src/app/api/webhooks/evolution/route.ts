@@ -533,6 +533,16 @@ export async function POST(req: Request) {
       // Deletar a instância destruiria as chaves Signal (pre-keys) do Baileys,
       // causando o erro "Aguardando mensagem" em todas as conversas futuras.
       // O usuário pode forçar uma desconexão manual pelo painel se necessário.
+      
+      if (userId && state) {
+        await supabase
+          .from('settings')
+          .update({
+            whatsapp_status: state,
+            whatsapp_status_updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId);
+      }
     }
 
     return NextResponse.json({ success: true });

@@ -246,9 +246,27 @@ export default function WhatsAppPage() {
       )
       .subscribe();
 
+    // Realtime: escuta mudanças no status da conexão no banco
+    const statusSub = supabase
+      .channel("realtime-whatsapp-status")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "settings" },
+        (payload) => {
+          if (payload.new.whatsapp_status) {
+             const isOnline = payload.new.whatsapp_status === 'open';
+             setConnectionStatus(isOnline ? 'online' : 'offline');
+             if (!isOnline) setIsConnected(false);
+             setLastChecked(new Date());
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       clearTimeout(pollTimeout);
       supabase.removeChannel(chatSub);
+      supabase.removeChannel(statusSub);
     };
   }, [loadChats]);
 
