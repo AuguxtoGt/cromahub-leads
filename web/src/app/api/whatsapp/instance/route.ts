@@ -100,7 +100,7 @@ export async function POST(req: Request) {
       await new Promise(resolve => setTimeout(resolve, 3000)); // 20 * 3s = 60s max
       console.log(`[WAHA] Tentativa ${i+1}/20 de obter o QR code...`);
 
-      const response = await fetch(`${WAHA_API_URL}/api/sessions/${INSTANCE_NAME}/auth/qr`, {
+      const response = await fetch(`${WAHA_API_URL}/api/${INSTANCE_NAME}/auth/qr`, {
         method: 'GET',
         headers: { 'X-Api-Key': WAHA_API_KEY, 'Accept': 'application/json' }
       });
@@ -110,15 +110,13 @@ export async function POST(req: Request) {
       
       try {
         const data = JSON.parse(textResponse);
-        if (data && data.qr) {
-          // WAHA envia o QR apenas em string, às vezes precisa gerar imagem.
-        }
+        if (data && data.session === 'STARTING') continue;
       } catch (e) {
         // Ignorar
       }
       
       // A forma mais segura de pegar imagem na WAHA:
-      const imgRes = await fetch(`${WAHA_API_URL}/api/sessions/${INSTANCE_NAME}/auth/qr?format=image`, {
+      const imgRes = await fetch(`${WAHA_API_URL}/api/${INSTANCE_NAME}/auth/qr?format=image`, {
         method: 'GET',
         headers: { 'X-Api-Key': WAHA_API_KEY }
       });
