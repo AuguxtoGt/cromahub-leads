@@ -48,7 +48,9 @@ export default function LeadsPage() {
     const leadsSubscription = supabase
       .channel('public:leads')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
-        setLeads(prev => [payload.new as any, ...prev]);
+        const incoming = payload.new as any;
+        // Ignora se o lead já está na lista (evita duplicação com o setLeads manual)
+        setLeads(prev => prev.some(l => l.id === incoming.id) ? prev : [incoming, ...prev]);
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
         const updated = payload.new as any;
@@ -137,14 +139,16 @@ export default function LeadsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        // Move o lead disparado para o final da lista
+        // Move o lead para o final da lista (leads disparados ficam por último)
         setLeads(prev => [
           ...prev.filter(l => l.id !== lead.id),
           data.lead,
         ]);
-        toast.success("Lead adicionado à fila!");
+        // Atualiza o painel lateral se estiver aberto neste lead
+        if (selectedLead?.id === lead.id) setSelectedLead(data.lead);
+        toast.success('Lead adicionado à fila de disparo! ⏳');
       } else {
-        toast.error("Erro ao enfileirar lead: " + (data.error || 'Desconhecido'));
+        toast.error('Erro ao enfileirar lead: ' + (data.error || 'Desconhecido'));
       }
     } catch (err) {
       toast.error('Erro ao enfileirar lead.');
@@ -153,40 +157,40 @@ export default function LeadsPage() {
     }
   };
 
+
   const handleManualSend = async (e: React.MouseEvent, lead: any) => {
     e.stopPropagation();
     const cleanPhone = (lead.phone || '').replace(/\D/g, '');
     const message = encodeURIComponent(lead.ai_message || lead.copy_gerada || '');
     window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
 
-    toast('Mensagem enviada com sucesso?', {
-      description: 'Isso atualizará o status do lead para "Enviado".',
-      action: {
-        label: 'Sim, atualizar',
-        onClick: async () => {
-          try {
-            const { data, error } = await supabase
-              .from('leads')
-              .update({ status_pipeline: 'SENT' })
-              .eq('id', lead.id)
-              .select()
-              .single();
-              
-            if (!error && data) {
-              setLeads(prev => [
-                ...prev.filter(l => l.id !== lead.id),
-                data,
-              ]);
-              toast.success("Status atualizado!");
-            }
-          } catch (err) {
-            console.error("Erro ao atualizar status manual", err);
-            toast.error("Erro ao atualizar status.");
-          }
-        }
+    // Atualiza o status imediatamente — sem perguntar. 
+    // O usuário clicou no botão, então a intenção de enviar é clara.
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .update({ status_pipeline: 'SENT', sent_at: new Date().toISOString() })
+        .eq('id', lead.id)
+        .select()
+        .single();
+
+      if (!error && data) {
+        // Move o lead enviado para o final da lista
+        setLeads(prev => [
+          ...prev.filter(l => l.id !== lead.id),
+          data,
+        ]);
+        if (selectedLead?.id === lead.id) setSelectedLead(data);
+        toast.success('Mensagem aberta no WhatsApp. Lead marcado como Enviado ✓');
+      } else {
+        toast.error('Erro ao atualizar status do lead.');
       }
-    });
+    } catch (err) {
+      console.error('Erro ao atualizar status manual', err);
+      toast.error('Erro ao atualizar status.');
+    }
   };
+
 
   const handleDeleteLead = async (e: React.MouseEvent, lead: any) => {
     e.stopPropagation();
@@ -263,11 +267,12 @@ export default function LeadsPage() {
         .single();
 
       if (error) throw error;
-      
-      setLeads(prev => [data, ...prev]);
+
+      // NÃO chama setLeads aqui — o Realtime INSERT já vai adicionar o lead.
+      // Chamar os dois causaria duplicação.
       setIsAddModalOpen(false);
       setNewLeadData({ name: '', phone: '' });
-      toast.success("Lead adicionado com sucesso!");
+      toast.success('Lead adicionado com sucesso!');
     } catch (err: any) {
       toast.error('Erro ao salvar lead: ' + err.message);
     } finally {
@@ -330,7 +335,7 @@ export default function LeadsPage() {
     const targetLeads = count === 'ALL' ? readyLeads : readyLeads.slice(0, count);
 
     if (targetLeads.length === 0) {
-      toast.warning("Nenhum lead com mensagem pronta disponível.");
+      toast.warning('Nenhum lead com mensagem pronta disponível.');
       return;
     }
     
@@ -347,17 +352,23 @@ export default function LeadsPage() {
         });
         const data = await res.json();
         if (data.success) {
-          setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
+          // Move cada lead para o final conforme vai sendo enfileirado
+          setLeads(prev => [
+            ...prev.filter(l => l.id !== lead.id),
+            data.lead,
+          ]);
         }
       } catch (err) {
-        console.error("Erro no batch Queue", err);
+        console.error('Erro no batch Queue', err);
       }
       processedCount++;
       setBatchProgress(prev => ({ ...prev, current: processedCount }));
     }
-    
+
+    toast.success(`${processedCount} leads adicionados à fila!`);
     setTimeout(() => setIsBatchProcessing(false), 1000);
   };
+
 
   const handleClearQueue = async () => {
     setShowBatchMenu(false);

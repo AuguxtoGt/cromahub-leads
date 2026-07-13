@@ -157,14 +157,17 @@ export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead }: 
                 <Mail className="w-4 h-4" />
               </button>
 
-              {/* Google Maps — copia link */}
-              <button
-                onClick={() => copyToClipboard(mapsLink || "", "Link do Maps")}
-                title={mapsLink ? "Copiar link do Google Maps" : "Sem localização"}
+              {/* Google Maps — abre empresa no Google Maps */}
+              <a
+                href={mapsLink || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={mapsLink ? "Ver no Google Maps" : "Sem localização"}
+                onClick={(e) => !mapsLink && e.preventDefault()}
                 className={`w-10 h-10 rounded-full border border-border flex items-center justify-center transition-colors text-muted-foreground ${mapsLink ? "hover:bg-muted hover:text-foreground cursor-pointer" : "opacity-40 cursor-not-allowed"}`}
               >
                 <MapPin className="w-4 h-4" />
-              </button>
+              </a>
 
               {/* WhatsApp — abre conversa */}
               <a

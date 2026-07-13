@@ -131,6 +131,7 @@ export default function WhatsAppPage() {
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [isLoadingQr, setIsLoadingQr] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
 
@@ -180,15 +181,16 @@ export default function WhatsAppPage() {
   useEffect(() => {
     loadChats();
 
+    // Verificação inicial LEVE: só checa se já está conectado (GET), sem criar instância.
+    // O usuário deve clicar em "Gerar QR Code" para iniciar a conexão.
     const checkConnection = async () => {
       try {
-        const response = await fetch("/api/whatsapp/instance", { method: "POST" });
+        const response = await fetch("/api/whatsapp/instance", { method: "GET" });
         const data = await response.json();
         if (data.connected) {
           setIsConnected(true);
-        } else if (data.qrcode) {
-          setQrCode(data.qrcode);
         }
+        // Se não conectado, simplesmente mostra o botão de "Gerar QR Code"
       } catch (e) {
         console.error(e);
       } finally {
@@ -361,13 +363,20 @@ export default function WhatsAppPage() {
   // ─── Gerar QR Code ────────────────────────────────────────
   const handleConnect = async () => {
     setIsLoadingQr(true);
+    setQrError(null);
     try {
       const response = await fetch("/api/whatsapp/instance", { method: "POST" });
       const data = await response.json();
-      if (data.qrcode) setQrCode(data.qrcode);
-      else if (data.connected) setIsConnected(true);
+      if (data.qrcode) {
+        setQrCode(data.qrcode);
+      } else if (data.connected) {
+        setIsConnected(true);
+      } else {
+        setQrError(data.error || 'Não foi possível gerar o QR Code. Verifique se a Evolution API está online e tente novamente.');
+      }
     } catch (e) {
       console.error(e);
+      setQrError('Erro de conexão. Verifique sua internet e tente novamente.');
     }
     setIsLoadingQr(false);
   };
@@ -427,28 +436,48 @@ export default function WhatsAppPage() {
           </p>
 
           {isLoadingQr ? (
-            <div className="w-56 h-56 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-slate-50">
+            <div className="w-56 h-56 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-slate-50 flex-col gap-3">
               <RefreshCcw className="w-6 h-6 animate-spin text-green-500" />
-            </div>
-          ) : qrCode ? (
-            <div className="p-4 bg-white border border-border rounded-lg shadow-sm">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={qrCode}
-                alt="WhatsApp QR Code"
-                className="w-48 h-48"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Abra o WhatsApp → Dispositivos conectados → Conectar
+              <p className="text-xs text-muted-foreground text-center px-4">
+                Aguardando Evolution API...<br />
+                <span className="text-slate-400">(pode levar até 20 segundos)</span>
               </p>
             </div>
+          ) : qrCode ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="p-4 bg-white border border-border rounded-lg shadow-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrCode}
+                  alt="WhatsApp QR Code"
+                  className="w-48 h-48"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Abra o WhatsApp → Dispositivos conectados → Conectar
+              </p>
+              <button
+                onClick={handleConnect}
+                className="text-xs text-green-600 hover:text-green-700 underline"
+              >
+                QR Code expirou? Gerar novo
+              </button>
+            </div>
           ) : (
-            <button
-              onClick={handleConnect}
-              className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-sm"
-            >
-              Gerar QR Code
-            </button>
+            <div className="flex flex-col items-center gap-3">
+              {qrError && (
+                <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg p-3 text-left max-w-xs">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>{qrError}</span>
+                </div>
+              )}
+              <button
+                onClick={handleConnect}
+                className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-sm"
+              >
+                {qrError ? 'Tentar novamente' : 'Gerar QR Code'}
+              </button>
+            </div>
           )}
         </div>
       </div>

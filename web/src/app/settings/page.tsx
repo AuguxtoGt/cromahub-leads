@@ -157,6 +157,7 @@ export default function SettingsPage() {
           follow_up_prompt: settings.follow_up_prompt,
           follow_up_enabled: settings.follow_up_enabled,
           lead_name: testLeadName,
+          offer_name: settings.offer_name,
           offer_price: settings.offer_price,
           offer_deadline: settings.offer_deadline,
           owner_name: settings.owner_name,
@@ -172,6 +173,7 @@ export default function SettingsPage() {
       setIsTesting(false);
     }
   };
+
 
   const handleImprovePrompt = async () => {
     if (!feedback.trim() || !previewMessage) return;

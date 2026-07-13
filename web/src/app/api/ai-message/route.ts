@@ -46,9 +46,11 @@ export async function POST(req: Request) {
       .limit(1)
       .single();
 
-    const basePrompt = settingsData?.system_prompt || `Você é um vendedor consultivo especialista em presença digital para pequenos negócios.`;
-    const offerPrice = settingsData?.offer_price || '297';
-    const offerDeadline = settingsData?.offer_deadline || '24 horas';
+    const basePrompt = settingsData?.system_prompt || `Você é um assistente de prospecção via WhatsApp. Sua única função é gerar UMA frase curta e amigável perguntando se o número pertence à empresa em questão.\n\nVariações possíveis:\n1. "[Saudação], é da empresa {{nome_empresa}}?"\n2. "[Saudação], tudo bem? É da empresa {{nome_empresa}}?"\n3. "Oi, tudo bem? É da empresa {{nome_empresa}}?"`;
+    const offerPrice = settingsData?.offer_price || '';
+    const offerDeadline = settingsData?.offer_deadline || '';
+    const offerName = settingsData?.offer_name || '';
+    const ownerName = settingsData?.owner_name || '';
 
     // Adiciona exemplos reais ao prompt (few-shot learning)
     const examples: any[] = settingsData?.message_examples || [];
@@ -63,25 +65,29 @@ export async function POST(req: Request) {
     const hour = nowBR.getHours();
     const saudacao = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 
+    // Bloco de dados do vendedor — omite linhas não preenchidas para não confundir a IA
+    const vendedorLines = [
+      ownerName ? `- Seu Nome / Empresa: ${ownerName}` : null,
+    ].filter(Boolean).join('\n');
+
+    // Bloco de oferta — só inclui se o usuário configurou
+    const ofertaLines = [
+      offerName ? `- Produto/Serviço: ${offerName}` : null,
+      offerPrice ? `- Preço: R$${offerPrice}` : null,
+      offerDeadline ? `- Prazo: ${offerDeadline}` : null,
+    ].filter(Boolean).join('\n');
+
     // Gerar mensagem com OpenAI usando o prompt customizado
     const userPrompt = `DADOS DO LEAD:
 - Nome: ${lead.name}
 - Endereço: ${lead.formatted_address || 'Não informado'}
 - Cidade: ${lead.city || 'Não informada'}
 - Estado: ${lead.state || 'Não informado'}
-
-DADOS DO VENDEDOR (QUEM ESTÁ ENVIANDO A MENSAGEM):
-- Seu Nome: ${settingsData?.owner_name || 'Gustavo'}
-
+${vendedorLines ? `\nDADOS DO VENDEDOR (QUEM ESTÁ ENVIANDO A MENSAGEM):\n${vendedorLines}` : ''}
 HORÁRIO ATUAL (BRASIL):
 - Hora atual: ${hour}h
-- Saudação OBRIGATÓRIA para usar no início da mensagem: "${saudacao}" (NÃO use outra saudação — não escreva "Bom dia" se for tarde, nem "Boa tarde" se for manhã)
-
-DADOS DA OFERTA (use essas informações caso o seu system prompt instrua, caso contrário ignore):
-- Produto: Landing Page profissional
-- Preço: R$${offerPrice}
-- Prazo: ${offerDeadline}
-
+- Saudação OBRIGATÓRIA para usar no início da mensagem: "${saudacao}" (NÃO use outra saudação)
+${ofertaLines ? `\nDADOS DA OFERTA (use se o seu system prompt instruir, caso contrário ignore):\n${ofertaLines}` : ''}
 Siga RIGOROSAMENTE as regras e restrições do seu System Prompt (especialmente sobre limite de tamanho e tom de voz).
 ${settingsData?.follow_up_enabled !== false ? `IMPORTANTE: Você deve retornar APENAS um objeto JSON com duas chaves exatas:
 {
@@ -90,10 +96,11 @@ ${settingsData?.follow_up_enabled !== false ? `IMPORTANTE: Você deve retornar A
 }
 
 REGRA PARA A MENSAGEM DE FOLLOW-UP:
-${settingsData?.follow_up_prompt || "Uma mensagem de 1 a 2 frases curtas, enviada 24h depois caso ele não responda, perguntando se ele conseguiu ver a mensagem e sugerindo mostrar um exemplo"}` : `IMPORTANTE: Você deve retornar APENAS um objeto JSON com uma chave exata:
+${settingsData?.follow_up_prompt || "Uma mensagem de 1 a 2 frases curtas, enviada 24h depois caso ele não responda, perguntando se ele conseguiu ver a mensagem anterior"}` : `IMPORTANTE: Você deve retornar APENAS um objeto JSON com uma chave exata:
 {
   "primeira_mensagem": "O texto da mensagem de prospecção principal"
 }`}`;
+
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
