@@ -36,9 +36,34 @@ export default function LeadsPage() {
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, type: '' });
 
+  const [nextDispatch, setNextDispatch] = useState<string>('');
+
   const sortRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const batchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateNextDispatch = () => {
+      const now = new Date();
+      const h = now.getHours();
+      const m = now.getMinutes();
+      const day = now.getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+
+      if (day === 0 || day === 6 || h >= 18) {
+        setNextDispatch(day === 5 && h >= 18 ? "Segunda 08:00" : day === 6 ? "Segunda 08:00" : "Amanhã 08:00");
+      } else if (h < 8) {
+        setNextDispatch("Hoje 08:00");
+      } else {
+        if (m < 20) setNextDispatch(`${h.toString().padStart(2, '0')}:20`);
+        else if (m < 40) setNextDispatch(`${h.toString().padStart(2, '0')}:40`);
+        else if (h === 17) setNextDispatch("Amanhã 08:00");
+        else setNextDispatch(`${(h + 1).toString().padStart(2, '0')}:00`);
+      }
+    };
+    updateNextDispatch();
+    const interval = setInterval(updateNextDispatch, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     fetchLeads();
