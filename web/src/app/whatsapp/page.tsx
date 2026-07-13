@@ -457,8 +457,8 @@ export default function WhatsAppPage() {
             <div className="w-56 h-56 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-slate-50 flex-col gap-3">
               <RefreshCcw className="w-6 h-6 animate-spin text-green-500" />
               <p className="text-xs text-muted-foreground text-center px-4">
-                Aguardando Evolution API...<br />
-                <span className="text-slate-400">(pode levar até 20 segundos)</span>
+                Aguardando WhatsApp API...<br />
+                <span className="text-xs text-slate-400">(pode levar até 20 segundos)</span>
               </p>
             </div>
           ) : qrCode ? (
