@@ -42,9 +42,10 @@ export async function POST(req: Request) {
     // Buscar o prompt customizado e exemplos das configurações do usuário (RLS cuida disso)
     const { data: settingsData } = await supabase
       .from('settings')
-      .select('system_prompt, follow_up_prompt, follow_up_enabled, offer_price, offer_deadline, message_examples, owner_name')
+      .select('system_prompt, follow_up_prompt, follow_up_enabled, offer_name, offer_price, offer_deadline, message_examples, owner_name')
       .limit(1)
       .single();
+
 
     const basePrompt = settingsData?.system_prompt || `Você é um assistente de prospecção via WhatsApp. Sua única função é gerar UMA frase curta e amigável perguntando se o número pertence à empresa em questão.\n\nVariações possíveis:\n1. "[Saudação], é da empresa {{nome_empresa}}?"\n2. "[Saudação], tudo bem? É da empresa {{nome_empresa}}?"\n3. "Oi, tudo bem? É da empresa {{nome_empresa}}?"`;
     const offerPrice = settingsData?.offer_price || '';
