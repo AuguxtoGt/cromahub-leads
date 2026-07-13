@@ -73,12 +73,26 @@ export async function POST(req: Request) {
     console.log(`[WAHA] Resposta criacao (${createRes.status}):`, createText);
 
     if (createRes.status === 422 || createText.includes('already exists')) {
-      console.log(`[WAHA] Sessão já existe. Tentando iniciar/retomar...`);
-      const startRes = await fetch(`${WAHA_API_URL}/api/sessions/${INSTANCE_NAME}/start`, {
+      console.log(`[WAHA] Sessão já existe. Deletando para recriar do zero...`);
+      await fetch(`${WAHA_API_URL}/api/sessions/${INSTANCE_NAME}/stop`, {
         method: 'POST',
         headers: { 'X-Api-Key': WAHA_API_KEY, 'Accept': 'application/json' }
       });
-      console.log(`[WAHA] Resposta start (${startRes.status})`);
+      await fetch(`${WAHA_API_URL}/api/sessions/${INSTANCE_NAME}`, {
+        method: 'DELETE',
+        headers: { 'X-Api-Key': WAHA_API_KEY, 'Accept': 'application/json' }
+      });
+      
+      console.log(`[WAHA] Recriando sessão...`);
+      await fetch(`${WAHA_API_URL}/api/sessions/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': WAHA_API_KEY,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(createPayload)
+      });
     }
 
     // 2. Tentar pegar o QR Code com retentativas
@@ -92,6 +106,7 @@ export async function POST(req: Request) {
       });
       
       const textResponse = await response.text();
+      console.log(`[WAHA] Resposta QR (status ${response.status}):`, textResponse.substring(0, 200));
       
       try {
         const data = JSON.parse(textResponse);
