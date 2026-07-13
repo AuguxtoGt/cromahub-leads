@@ -44,6 +44,21 @@ export async function POST(req: Request) {
     const INSTANCE_NAME = `cromahub-${user.id}`;
 
     // 1. Tentar criar a sessão na WAHA
+    const createPayload = {
+      name: INSTANCE_NAME,
+      config: {
+        webhooks: [
+          {
+            url: `${APP_URL}/api/webhooks/waha`,
+            events: ["message", "session.status"],
+            hmac: null
+          }
+        ]
+      }
+    };
+    
+    console.log(`[WAHA] Criando sessao ${INSTANCE_NAME}...`, JSON.stringify(createPayload));
+
     const createRes = await fetch(`${WAHA_API_URL}/api/sessions/`, {
       method: 'POST',
       headers: {
@@ -51,26 +66,19 @@ export async function POST(req: Request) {
         'X-Api-Key': WAHA_API_KEY,
         'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        name: INSTANCE_NAME,
-        config: {
-          webhooks: [
-            {
-              url: `${APP_URL}/api/webhooks/waha`,
-              events: ["message", "session.status"],
-              hmac: null
-            }
-          ]
-        }
-      })
+      body: JSON.stringify(createPayload)
     });
+
+    const createText = await createRes.text();
+    console.log(`[WAHA] Resposta criacao (${createRes.status}):`, createText);
 
     // Se já existir, a WAHA pode retornar erro ou sucesso, mas vamos ignorar se já existir
     // Vamos direto pedir o QR Code
 
-    // 2. Tentar pegar o QR Code com retentativas (pois demora para gerar)
-    for (let i = 0; i < 8; i++) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    // 2. Tentar pegar o QR Code com retentativas (pois demora para gerar, Chromium pode ser lento na primeira vez)
+    for (let i = 0; i < 20; i++) {
+      await new Promise(resolve => setTimeout(resolve, 3000)); // 20 * 3s = 60s max
+      console.log(`[WAHA] Tentativa ${i+1}/20 de obter o QR code...`);
 
       const response = await fetch(`${WAHA_API_URL}/api/sessions/${INSTANCE_NAME}/auth/qr`, {
         method: 'GET',
@@ -83,9 +91,6 @@ export async function POST(req: Request) {
         const data = JSON.parse(textResponse);
         if (data && data.qr) {
           // WAHA envia o QR apenas em string, às vezes precisa gerar imagem.
-          // O WAHA /auth/qr?format=image retorna PNG.
-          // Mas vamos usar o /auth/qr padrão que retorna { qr: "string", format: "string" } e tentaremos usar.
-          // Na WAHA API, podemos buscar a imagem base64 diretamente usando outro endpoint, mas o json com base64 é comum.
         }
       } catch (e) {
         // Ignorar
@@ -100,6 +105,7 @@ export async function POST(req: Request) {
       if (imgRes.ok && imgRes.headers.get('content-type')?.includes('image')) {
         const buffer = await imgRes.arrayBuffer();
         const base64 = Buffer.from(buffer).toString('base64');
+        console.log(`[WAHA] QR code obtido com sucesso!`);
         return NextResponse.json({ qrcode: `data:image/png;base64,${base64}` });
       }
 
@@ -110,6 +116,7 @@ export async function POST(req: Request) {
       if (stateRes.ok) {
          const stateData = await stateRes.json();
          if (stateData?.status === 'WORKING') {
+           console.log(`[WAHA] Sessao ja conectada (WORKING).`);
            return NextResponse.json({ connected: true });
          }
       }
