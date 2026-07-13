@@ -72,10 +72,16 @@ export async function POST(req: Request) {
     const createText = await createRes.text();
     console.log(`[WAHA] Resposta criacao (${createRes.status}):`, createText);
 
-    // Se já existir, a WAHA pode retornar erro ou sucesso, mas vamos ignorar se já existir
-    // Vamos direto pedir o QR Code
+    if (createRes.status === 422 || createText.includes('already exists')) {
+      console.log(`[WAHA] Sessão já existe. Tentando iniciar/retomar...`);
+      const startRes = await fetch(`${WAHA_API_URL}/api/sessions/${INSTANCE_NAME}/start`, {
+        method: 'POST',
+        headers: { 'X-Api-Key': WAHA_API_KEY, 'Accept': 'application/json' }
+      });
+      console.log(`[WAHA] Resposta start (${startRes.status})`);
+    }
 
-    // 2. Tentar pegar o QR Code com retentativas (pois demora para gerar, Chromium pode ser lento na primeira vez)
+    // 2. Tentar pegar o QR Code com retentativas
     for (let i = 0; i < 20; i++) {
       await new Promise(resolve => setTimeout(resolve, 3000)); // 20 * 3s = 60s max
       console.log(`[WAHA] Tentativa ${i+1}/20 de obter o QR code...`);
