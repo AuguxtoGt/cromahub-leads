@@ -1,17 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getDbClient } from '@/lib/supabase-api';
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
+const WAHA_API_URL = process.env.WAHA_API_URL || 'https://api.cromahub.cloud';
+const WAHA_API_KEY = process.env.WAHA_API_KEY || 'CromaHubWahaKey2026';
 
 export async function POST(req: Request) {
-  if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
-    return NextResponse.json(
-      { error: 'Variáveis de ambiente da Evolution API não configuradas.' },
-      { status: 500 }
-    );
-  }
-
   try {
     const supabase = await getDbClient(req);
     const { data: { user } } = await supabase.auth.getUser();
@@ -26,35 +19,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Faltando parâmetros: remote_jid e text são obrigatórios.' }, { status: 400 });
     }
 
-    // A Evolution API aceita o JID completo (incluindo @lid ou @g.us) ou apenas os dígitos para @s.whatsapp.net
-    // Como o painel nos envia o remote_jid, vamos usá-lo diretamente
-    const number = remote_jid;
+    let chatId = remote_jid;
+    if (chatId.includes('@s.whatsapp.net')) {
+      chatId = chatId.replace('@s.whatsapp.net', '@c.us');
+    } else if (!chatId.includes('@')) {
+      chatId = `${chatId}@c.us`;
+    }
 
-    // ── Payload Evolution API ─────────────────────────────────
+    // ── Payload WAHA API ─────────────────────────────────
     const payload = {
-      number,
-      options: {
-        delay: 1200,
-        presence: 'composing',
-      },
-      text,
+      session: INSTANCE_NAME,
+      chatId: chatId,
+      text: text,
     };
 
-    const response = await fetch(
-      `${EVOLUTION_API_URL}/message/sendText/${INSTANCE_NAME}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: EVOLUTION_API_KEY,
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    const response = await fetch(`${WAHA_API_URL}/api/sendText`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': WAHA_API_KEY,
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload),
+    });
 
     if (!response.ok) {
       const err = await response.text();
-      console.error('Erro na Evolution API (sendText):', response.status, err);
+      console.error('Erro na WAHA API (sendText):', response.status, err);
       if (chat_id) {
         await supabase.from('whatsapp_messages').insert({
           chat_id,

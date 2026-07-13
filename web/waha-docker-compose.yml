@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  waha:
+    image: devlikeapro/waha
+    restart: always
+    environment:
+      # Chave de segurança para acessar a WAHA (Gere uma forte)
+      - WHATSAPP_API_KEY=CromaHubWahaKey2026
+      # Motor NOWEB usa Baileys. Para Chromium/WebJS (muito estavel mas mais pesado), use WEBJS
+      - WHATSAPP_DEFAULT_ENGINE=WEBJS
+      - WHATSAPP_SWAGGER_USERNAME=admin
+      - WHATSAPP_SWAGGER_PASSWORD=admin
+    ports:
+      - "3000:3000"

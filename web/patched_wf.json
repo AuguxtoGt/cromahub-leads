@@ -1,0 +1,325 @@
+{
+  "nodes": [
+    {
+      "id": "af21f419-9ea9-4a8f-9d12-8c5fd288e969",
+      "name": "Gatilho (Seg-Sex, 08h-18h, a cada 20min)",
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "expression": "*/20 8-18 * * 1-5",
+              "field": "cronExpression"
+            }
+          ]
+        }
+      },
+      "position": [
+        -2288,
+        448
+      ],
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2
+    },
+    {
+      "id": "4028956a-eef1-4637-8a8b-7e282b1fad51",
+      "name": "Puxar Leads na Fila",
+      "parameters": {
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer crhm-leads-sec-9a8b7c6d5e4f3g2h1"
+            }
+          ]
+        },
+        "method": "POST",
+        "options": {},
+        "sendHeaders": true,
+        "url": "https://leads.cromahub.cloud/api/queue-lead/batch?limit=7"
+      },
+      "position": [
+        -2080,
+        448
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "id": "cb77f703-09e2-438b-9da8-d4bc99d9f9de",
+      "name": "Separar Leads em Itens",
+      "parameters": {
+        "fieldToSplitOut": "leads",
+        "options": {}
+      },
+      "position": [
+        -1888,
+        448
+      ],
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 2.1
+    },
+    {
+      "id": "bd3d47a8-a57a-4703-a199-a8045b41b2cd",
+      "name": "Loop (1 por vez)",
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "position": [
+        -1680,
+        448
+      ],
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2
+    },
+    {
+      "id": "df287af7-8802-4a66-8b9d-811e8d2cacd3",
+      "name": "Espera Randômica (5 a 9 min)",
+      "parameters": {
+        "amount": "={{ Math.floor(Math.random() * (9 - 5 + 1)) + 5 }}",
+        "unit": "minutes"
+      },
+      "position": [
+        -1488,
+        320
+      ],
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "webhookId": "538c4ec8-f20c-4e63-ac1a-85a99af1c76a"
+    },
+    {
+      "continueOnFail": true,
+      "id": "0c13df6c-72c2-439f-953b-6225479b1bc8",
+      "name": "WhatsApp API (Enviar Msg)",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer crhm-leads-sec-9a8b7c6d5e4f3g2h1"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "jsonBody": "={{ { \"lead_id\": .id, \"text\": .ai_message } }}",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "https://leads.cromahub.cloud/api/whatsapp/n8n-send"
+      },
+      "position": [
+        -1280,
+        448
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "id": "aacc29b8-5fe1-4a7d-942e-c81b05ac1d5c",
+      "name": "Deu Certo?",
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.error ? 'error' : 'success' }}",
+              "value2": "success"
+            }
+          ]
+        }
+      },
+      "position": [
+        -1088,
+        448
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1
+    },
+    {
+      "id": "61802e61-cd80-4071-9586-66c23ac4df74",
+      "name": "Atualiza Status p/ SENT",
+      "parameters": {
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer crhm-leads-sec-9a8b7c6d5e4f3g2h1"
+            }
+          ]
+        },
+        "jsonBody": "={{ { \"lead_id\": $('Loop (1 por vez)').item.json.id, \"success\": true } }}",
+        "method": "PATCH",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "https://leads.cromahub.cloud/api/queue-lead"
+      },
+      "position": [
+        -880,
+        336
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "id": "7a803b5e-320e-4f84-bf42-6c441b380349",
+      "name": "Atualiza Status p/ FAILED",
+      "parameters": {
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer crhm-leads-sec-9a8b7c6d5e4f3g2h1"
+            }
+          ]
+        },
+        "jsonBody": "={{ { \"lead_id\": $('Loop (1 por vez)').item.json.id, \"success\": false, \"error_message\": $json.error || 'Erro no envio' } }}",
+        "method": "PATCH",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "https://leads.cromahub.cloud/api/queue-lead"
+      },
+      "position": [
+        -880,
+        544
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    }
+  ],
+  "connections": {
+    "Atualiza Status p/ FAILED": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Loop (1 por vez)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Atualiza Status p/ SENT": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Loop (1 por vez)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Deu Certo?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Atualiza Status p/ SENT",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Atualiza Status p/ FAILED",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Espera Randômica (5 a 9 min)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "WhatsApp API (Enviar Msg)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Gatilho (Seg-Sex, 08h-18h, a cada 20min)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Puxar Leads na Fila",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Loop (1 por vez)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "WhatsApp API (Enviar Msg)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Puxar Leads na Fila": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Separar Leads em Itens",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Separar Leads em Itens": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Loop (1 por vez)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "WhatsApp API (Enviar Msg)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Deu Certo?",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Deu Certo?",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}
