@@ -72,6 +72,23 @@ export async function POST(req: Request) {
     const createText = await createRes.text();
     console.log(`[WAHA] Resposta criacao (${createRes.status}):`, createText);
 
+    const startSession = async () => {
+      console.log(`[WAHA] Iniciando/Dando start na sessão ${INSTANCE_NAME}...`);
+      try {
+        const startRes = await fetch(`${WAHA_API_URL}/api/sessions/${INSTANCE_NAME}/start`, {
+          method: 'POST',
+          headers: {
+            'X-Api-Key': WAHA_API_KEY,
+            'Accept': 'application/json'
+          }
+        });
+        const startText = await startRes.text();
+        console.log(`[WAHA] Resposta start (${startRes.status}):`, startText);
+      } catch (err: any) {
+        console.error(`[WAHA] Erro ao iniciar sessão:`, err.message);
+      }
+    };
+
     if (createRes.status === 422 || createText.includes('already exists')) {
       console.log(`[WAHA] Sessão já existe. Deletando para recriar do zero...`);
       await fetch(`${WAHA_API_URL}/api/sessions/${INSTANCE_NAME}/stop`, {
@@ -84,7 +101,7 @@ export async function POST(req: Request) {
       });
       
       console.log(`[WAHA] Recriando sessão...`);
-      await fetch(`${WAHA_API_URL}/api/sessions/`, {
+      const recreateRes = await fetch(`${WAHA_API_URL}/api/sessions/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,6 +110,11 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify(createPayload)
       });
+      console.log(`[WAHA] Resposta recriacao (${recreateRes.status})`);
+      
+      await startSession();
+    } else {
+      await startSession();
     }
 
     // 2. Tentar pegar o QR Code com retentativas
