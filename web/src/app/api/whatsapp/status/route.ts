@@ -36,11 +36,30 @@ export async function GET(req: Request) {
     });
 
     if (!res.ok) {
+      if (settings?.whatsapp_status === 'open') {
+        await supabase
+          .from('settings')
+          .update({ 
+            whatsapp_status: 'close', 
+            whatsapp_status_updated_at: new Date().toISOString() 
+          })
+          .eq('user_id', user.id);
+      }
       return NextResponse.json({ connected: false, reason: 'api' });
     }
 
     const data = await res.json();
     const connected = data?.status === 'WORKING';
+
+    if (!connected && settings?.whatsapp_status === 'open') {
+      await supabase
+        .from('settings')
+        .update({ 
+          whatsapp_status: 'close', 
+          whatsapp_status_updated_at: new Date().toISOString() 
+        })
+        .eq('user_id', user.id);
+    }
 
     return NextResponse.json({ connected, state: data?.status, source: 'api' });
   } catch (error: any) {
