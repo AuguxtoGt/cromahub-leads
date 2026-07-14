@@ -110,7 +110,7 @@
             }
           ]
         },
-        "jsonBody": "={\n  \"lead_id\": \"{{ $json.id }}\",\n  \"text\": \"{{ $json.ai_message }}\"\n}",
+        "jsonBody": "={{ { \"lead_id\": $json.id, \"text\": $json.ai_message } }}",
         "method": "POST",
         "options": {},
         "sendBody": true,
