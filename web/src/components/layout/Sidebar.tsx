@@ -6,7 +6,8 @@ import {
   Briefcase,
   Settings,
   HelpCircle,
-  LayoutDashboard
+  LayoutDashboard,
+  Sparkles
 } from 'lucide-react';
 
 import { WhatsAppStatusIndicator } from '@/components/WhatsAppStatusIndicator';
@@ -17,6 +18,7 @@ const MENU_ITEMS = [
   { name: 'Extração', href: '/extract', icon: Search },
   { name: 'WhatsApp', href: '/whatsapp', icon: MessageCircle },
   { name: 'Clientes', href: '/clients', icon: Briefcase },
+  { name: 'Instruções IA', href: '/instrucoes', icon: Sparkles },
 ];
 
 const BOTTOM_ITEMS = [

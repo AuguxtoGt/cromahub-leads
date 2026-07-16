@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers, Plus, Trash2 } from "lucide-react";
+import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers, Plus, Trash2, Download } from "lucide-react";
 import { toast } from "sonner";
 
 type SortField = "created_at" | "name" | "rating";
@@ -107,6 +107,40 @@ export default function LeadsPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleExportSent = () => {
+    const sentLeads = leads.filter(l => l.status_pipeline === 'SENT');
+    if (sentLeads.length === 0) {
+      toast.error("Nenhum lead com mensagem enviada para exportar.");
+      return;
+    }
+
+    const headers = ["Nome", "Telefone", "Site", "Cidade", "Estado", "Mensagem IA", "Mensagem Follow-up"];
+    const rows = sentLeads.map(l => [
+      l.name || "",
+      l.phone || "",
+      l.website || "",
+      l.city || "",
+      l.state || "",
+      l.ai_message || "",
+      l.ai_follow_up || ""
+    ]);
+
+    const csvContent = "\uFEFF" + [
+      headers.join(","),
+      ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `leads_enviados_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`${sentLeads.length} leads exportados com sucesso!`);
   };
 
   const handleConvertToClient = async (lead: any) => {
@@ -531,6 +565,14 @@ export default function LeadsPage() {
               </div>
             )}
           </div>
+
+          <button 
+            onClick={handleExportSent}
+            className="px-4 py-2 border border-green-600 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            Exportar Enviados
+          </button>
 
           <button 
             onClick={fetchLeads}
