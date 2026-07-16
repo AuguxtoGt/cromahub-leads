@@ -17,8 +17,8 @@ const MENU_ITEMS = [
   { name: 'Leads', href: '/', icon: Users },
   { name: 'Extração', href: '/extract', icon: Search },
   { name: 'WhatsApp', href: '/whatsapp', icon: MessageCircle },
-  { name: 'Clientes', href: '/clients', icon: Briefcase },
   { name: 'Instruções IA', href: '/instrucoes', icon: Sparkles },
+  { name: 'Clientes', href: '/clients', icon: Briefcase },
 ];
 
 const BOTTOM_ITEMS = [
