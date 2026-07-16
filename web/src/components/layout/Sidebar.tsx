@@ -5,12 +5,14 @@ import {
   MessageCircle, 
   Briefcase,
   Settings,
-  HelpCircle
+  HelpCircle,
+  LayoutDashboard
 } from 'lucide-react';
 
 import { WhatsAppStatusIndicator } from '@/components/WhatsAppStatusIndicator';
 
 const MENU_ITEMS = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Leads', href: '/', icon: Users },
   { name: 'Extração', href: '/extract', icon: Search },
   { name: 'WhatsApp', href: '/whatsapp', icon: MessageCircle },

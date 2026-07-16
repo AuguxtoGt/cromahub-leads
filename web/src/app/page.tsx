@@ -686,43 +686,6 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {/* Seção 2: Faturamento & Recorrência */}
-      <div className="space-y-3">
-        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Faturamento & Recorrência (Manutenção de Sites)
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { title: "Clientes Ativos", value: financialMetrics.clientCount.toString(), icon: "👥" },
-            { 
-              title: "Faturamento MRR", 
-              value: financialMetrics.totalMRR.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 
-              icon: "💵" 
-            },
-            { 
-              title: "Recebido este Mês", 
-              value: financialMetrics.totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 
-              icon: "📈" 
-            },
-            { 
-              title: "Pendente este Mês", 
-              value: financialMetrics.totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 
-              icon: "📉" 
-            },
-          ].map((card, i) => (
-            <div key={i} className="bg-sidebar border border-border rounded-xl p-5 flex flex-col gap-1 shadow-sm">
-              <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <span>{card.icon}</span>
-                {card.title}
-              </span>
-              <div className="flex flex-col">
-                <span className="text-3xl font-bold text-indigo-950 dark:text-white">{card.value}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <div className="bg-sidebar border border-border rounded-xl shadow-sm flex flex-col overflow-hidden">
         <div className="p-4 border-b border-border flex items-center justify-between bg-white">
           <input 
@@ -851,11 +814,9 @@ export default function LeadsPage() {
         )}
 
         <div className="grid grid-cols-8 gap-4 p-4 border-b border-border text-xs font-semibold tracking-wider text-muted-foreground uppercase bg-muted/30">
-          <div className="col-span-2">Lead</div>
+          <div className="col-span-4">Lead</div>
           <div>Telefone</div>
-          <div>Canal</div>
           <div>Status</div>
-          <div>Data</div>
           <div className="col-span-2 text-center">Ações</div>
         </div>
 
@@ -880,7 +841,7 @@ export default function LeadsPage() {
                   onClick={() => setSelectedLead(lead)}
                   className="grid grid-cols-8 gap-4 p-4 items-center text-sm hover:bg-muted/50 transition-colors cursor-pointer group"
                 >
-                  <div className="col-span-2 flex items-center gap-3">
+                  <div className="col-span-4 flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500 shrink-0">
                       {lead.name.charAt(0).toUpperCase()}
                     </div>
@@ -903,16 +864,11 @@ export default function LeadsPage() {
                   </div>
 
                   <div className="text-muted-foreground truncate">{lead.phone || "–"}</div>
-                  <div className="text-muted-foreground">Google Maps</div>
 
                   <div>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${pipeline.color}`}>
                       {pipeline.label}
                     </span>
-                  </div>
-
-                  <div className="text-muted-foreground">
-                    {new Date(lead.created_at).toLocaleDateString('pt-BR')}
                   </div>
 
                   <div className="col-span-2 flex gap-2 justify-center items-center" onClick={e => e.stopPropagation()}>

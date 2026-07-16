@@ -692,11 +692,9 @@ export default function LeadsPage() {
         )}
 
         <div className="grid grid-cols-8 gap-4 p-4 border-b border-border text-xs font-semibold tracking-wider text-muted-foreground uppercase bg-muted/30">
-          <div className="col-span-2">Lead</div>
+          <div className="col-span-4">Lead</div>
           <div>Telefone</div>
-          <div>Canal</div>
           <div>Status</div>
-          <div>Data</div>
           <div className="col-span-2 text-center">Ações</div>
         </div>
 
@@ -721,7 +719,7 @@ export default function LeadsPage() {
                   onClick={() => setSelectedLead(lead)}
                   className="grid grid-cols-8 gap-4 p-4 items-center text-sm hover:bg-muted/50 transition-colors cursor-pointer group"
                 >
-                  <div className="col-span-2 flex items-center gap-3">
+                  <div className="col-span-4 flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500 shrink-0">
                       {lead.name.charAt(0).toUpperCase()}
                     </div>
@@ -734,16 +732,11 @@ export default function LeadsPage() {
                   </div>
 
                   <div className="text-muted-foreground truncate">{lead.phone || "–"}</div>
-                  <div className="text-muted-foreground">Google Maps</div>
 
                   <div>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${pipeline.color}`}>
                       {pipeline.label}
                     </span>
-                  </div>
-
-                  <div className="text-muted-foreground">
-                    {new Date(lead.created_at).toLocaleDateString('pt-BR')}
                   </div>
 
                   <div className="col-span-2 flex gap-2 justify-center items-center" onClick={e => e.stopPropagation()}>

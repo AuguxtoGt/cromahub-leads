@@ -126,16 +126,13 @@ export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead, on
         )}
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8">
+        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
 
           {/* Profile Header */}
-          <div className="flex flex-col items-center text-center gap-3">
-            <div className="w-24 h-24 rounded-full bg-slate-200 border-4 border-white shadow-sm flex items-center justify-center text-2xl font-bold text-slate-500">
-              {lead?.name?.charAt(0) || "L"}
-            </div>
+          <div className="flex flex-col items-center text-center gap-2">
             <div>
-              <h3 className="text-2xl font-bold text-foreground">{lead?.name || "Nome do Lead"}</h3>
-              <p className="text-muted-foreground text-sm">{lead?.formatted_address || "Endereço não informado"}</p>
+              <h3 className="text-xl font-bold text-foreground">{lead?.name || "Nome do Lead"}</h3>
+              <p className="text-muted-foreground text-xs mt-1 leading-relaxed">{lead?.formatted_address || "Endereço não informado"}</p>
             </div>
 
             {/* Quick Actions */}
@@ -201,38 +198,30 @@ export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead, on
           </div>
 
           {/* Informações Básicas */}
-          <div className="flex flex-col gap-4">
-            <div className="border-b border-border pb-2">
-              <h4 className="font-semibold text-foreground">Informações Básicas</h4>
+          <div className="flex flex-col gap-2">
+            <div className="border-b border-border pb-1">
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider text-muted-foreground">Informações Básicas</h4>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Nome</span>
-                <span className="font-medium">{lead?.name || "–"}</span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">Avaliação Google</span>
+                <span className="font-medium">{lead?.rating ? `⭐ ${lead.rating} (${lead.user_ratings_total})` : "–"}</span>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Avaliação Google</span>
-                <span className="font-medium">{lead?.rating ? `⭐ ${lead.rating} (${lead.user_ratings_total} avaliações)` : "–"}</span>
-              </div>
-              <div className="flex flex-col gap-1 col-span-2">
-                <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Endereço</span>
-                <span className="font-medium">{lead?.formatted_address || "–"}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Status</span>
-                <span className="font-medium px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs w-fit border border-blue-100">Capturado</span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">Status</span>
+                <span className="font-medium px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] w-fit border border-blue-100">Capturado</span>
               </div>
             </div>
           </div>
 
           {/* Contato */}
-          <div className="flex flex-col gap-4">
-            <div className="border-b border-border pb-2">
-              <h4 className="font-semibold text-foreground">Contato</h4>
+          <div className="flex flex-col gap-2">
+            <div className="border-b border-border pb-1">
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider text-muted-foreground">Contato</h4>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Telefone</span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">Telefone</span>
                 <button
                   onClick={() => copyToClipboard(lead?.phone, "Telefone")}
                   className="font-medium text-left hover:text-primary transition-colors cursor-pointer"
@@ -240,8 +229,8 @@ export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead, on
                   {lead?.phone || "–"}
                 </button>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">E-mail</span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">E-mail</span>
                 <button
                   onClick={() => copyToClipboard(lead?.email, "E-mail")}
                   className="font-medium text-left hover:text-primary transition-colors cursor-pointer"
