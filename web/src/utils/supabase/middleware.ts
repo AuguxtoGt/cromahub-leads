@@ -41,8 +41,7 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute = 
     request.nextUrl.pathname.startsWith('/login') || 
     request.nextUrl.pathname.startsWith('/api/webhooks') ||
-    request.nextUrl.pathname === '/api/auth/callback' ||
-    request.nextUrl.pathname === '/api/debug-google'; // temporário para diagnóstico
+    request.nextUrl.pathname === '/api/auth/callback';
 
   // API Key mechanism for n8n to call protected APIs without a browser session
   const hasValidApiKey = () => {

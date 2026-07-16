@@ -145,6 +145,15 @@ async function saveMessage(
 
 export async function POST(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const token = searchParams.get('token');
+    const wahaKey = process.env.WAHA_API_KEY || 'CromaHubWahaKey2026';
+
+    if (!token || token !== wahaKey) {
+      console.warn('[Webhook WAHA] FALHA DE AUTENTICAÇÃO: Token ausente ou inválido.');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     console.log('[Webhook WAHA] Event:', body.event, 'Session:', body.session);
 

@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       config: {
         webhooks: [
           {
-            url: `${APP_URL}/api/webhooks/waha`,
+            url: `${APP_URL}/api/webhooks/waha?token=${WAHA_API_KEY}`,
             events: ["message", "session.status"],
             hmac: null
           }
