@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Mail, Phone, MapPin, Globe, Link as LinkIcon, Send, Sparkles } from "lucide-react";
+import { X, Mail, Phone, MapPin, Globe, Link as LinkIcon, Send, Sparkles, Briefcase } from "lucide-react";
 
 // Ícone Instagram (SVG próprio pois lucide-react não tem)
 function InstagramIcon({ className }: { className?: string }) {
@@ -21,6 +21,7 @@ interface SlideOverProps {
   lead: any;
   onGenerateIA?: (lead: any) => void;
   onQueueLead?: (lead: any) => void;
+  onConvertToClient?: (lead: any) => void;
 }
 
 // Ícone do WhatsApp (SVG)
@@ -32,7 +33,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
-export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead }: SlideOverProps) {
+export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead, onConvertToClient }: SlideOverProps) {
   const [copied, setCopied] = useState<string | null>(null);
 
   if (!isOpen || !lead) return null;
@@ -105,7 +106,7 @@ export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead }: 
       />
 
       {/* Slide-over panel */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white border-l border-border shadow-2xl flex flex-col">
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white border-l border-border shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground">Perfil do Lead</h2>
@@ -356,6 +357,16 @@ export function SlideOver({ isOpen, onClose, lead, onGenerateIA, onQueueLead }: 
             >
               <Send className="w-4 h-4" />
               Disparar
+            </button>
+          )}
+          {onConvertToClient && (
+            <button 
+              onClick={() => onConvertToClient(lead)}
+              className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md transition-colors shadow-sm flex items-center justify-center gap-2 text-sm"
+              title="Converter em Cliente Recorrente"
+            >
+              <Briefcase className="w-4 h-4" />
+              Converter
             </button>
           )}
           {onGenerateIA && (

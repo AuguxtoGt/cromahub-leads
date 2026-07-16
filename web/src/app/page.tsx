@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { supabase } from "@/lib/supabase";
 import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers, Plus, Trash2 } from "lucide-react";
@@ -14,6 +14,7 @@ type FilterStatus = "ALL" | "NEW" | "READY" | "QUEUED" | "SENT" | "FAILED";
 export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingLeadId, setLoadingLeadId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -69,6 +70,7 @@ export default function LeadsPage() {
 
   useEffect(() => {
     fetchLeads();
+    fetchClients();
 
     const leadsSubscription = supabase
       .channel('public:leads')
@@ -124,8 +126,113 @@ export default function LeadsPage() {
     }
   };
 
-  const handleGenerateMessage = async (e: React.MouseEvent, lead: any) => {
-    e.stopPropagation();
+  const fetchClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setClients(data || []);
+    } catch (error) {
+      console.error("Erro ao buscar clientes:", error);
+    }
+  };
+
+  const getClientStatus = (client: any): "PENDING" | "PAID" | "OVERDUE" => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const currentDay = today.getDate();
+
+    if (client.last_payment_date) {
+      const payDate = new Date(client.last_payment_date);
+      if (payDate.getMonth() === currentMonth && payDate.getFullYear() === currentYear) {
+        return "PAID";
+      }
+    }
+
+    if (currentDay > client.due_day) {
+      return "OVERDUE";
+    }
+
+    return "PENDING";
+  };
+
+  const financialMetrics = useMemo(() => {
+    let totalMRR = 0;
+    let totalPaid = 0;
+    let totalPending = 0;
+
+    clients.forEach(client => {
+      const status = getClientStatus(client);
+      const val = parseFloat(client.price) || 0;
+      totalMRR += val;
+      if (status === "PAID") {
+        totalPaid += val;
+      } else {
+        totalPending += val;
+      }
+    });
+
+    return {
+      totalMRR,
+      totalPaid,
+      totalPending,
+      clientCount: clients.length,
+    };
+  }, [clients]);
+
+  const handleConvertToClient = async (lead: any) => {
+    if (!lead.name) return;
+
+    const priceInput = window.prompt(`Deseja converter o lead "${lead.name}" em cliente?\nDigite o valor da mensalidade (Ex: 399.90):`, "399.90");
+    if (priceInput === null) return; // cancelou
+
+    const monthlyPrice = parseFloat(priceInput.replace(',', '.'));
+    if (isNaN(monthlyPrice) || monthlyPrice < 0) {
+      toast.error("Valor inválido de mensalidade.");
+      return;
+    }
+
+    try {
+      const { data: existing } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('name', lead.name)
+        .maybeSingle();
+
+      if (existing) {
+        toast.warning("Um cliente com este nome já existe!");
+        return;
+      }
+
+      const domain = lead.website ? lead.website.replace(/https?:\/\//i, '').replace(/\/$/, '') : null;
+
+      const { error } = await supabase
+        .from('clients')
+        .insert({
+          name: lead.name,
+          domain: domain,
+          phone: lead.phone || null,
+          price: monthlyPrice,
+          setup_price: 297.00,
+          due_day: 10,
+        });
+
+      if (error) throw error;
+
+      toast.success(`Lead "${lead.name}" convertido em cliente com sucesso! 🎉`);
+      fetchClients();
+    } catch (err: any) {
+      console.error("Erro ao converter lead:", err);
+      toast.error(`Erro ao converter lead: ${err.message}`);
+    }
+  };
+
+  const handleGenerateMessage = async (e: React.MouseEvent | null | undefined, lead: any) => {
+    if (e) e.stopPropagation();
     setLoadingLeadId(lead.id + '_ai');
     try {
       const res = await fetch('/api/ai-message', {
@@ -147,8 +254,8 @@ export default function LeadsPage() {
     }
   };
 
-  const handleQueueLead = async (e: React.MouseEvent, lead: any) => {
-    e.stopPropagation();
+  const handleQueueLead = async (e: React.MouseEvent | null | undefined, lead: any) => {
+    if (e) e.stopPropagation();
     setLoadingLeadId(lead.id + '_queue');
     try {
       const res = await fetch('/api/queue-lead', {
@@ -466,6 +573,7 @@ export default function LeadsPage() {
     pronto: leads.filter(l => l.status_pipeline === 'READY').length,
     enviado: leads.filter(l => l.status_pipeline === 'SENT').length,
     fila: leads.filter(l => l.status_pipeline === 'QUEUED' || l.status_pipeline === 'SENDING').length,
+    falhou: leads.filter(l => l.status_pipeline === 'FAILED').length,
   };
 
   const activeFilters = (filterStatus !== "ALL" ? 1 : 0) + (filterHasWebsite !== "ALL" ? 1 : 0);
@@ -548,27 +656,71 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        {[
-          { title: "Total Leads", value: stats.total.toString(), icon: "🗂️" },
-          { title: "Novos", value: stats.novo.toString(), icon: "✨" },
-          { title: "Msg Pronta", value: stats.pronto.toString(), icon: "🤖" },
-          { title: "Na Fila", value: stats.fila.toString(), icon: "⏳", sublabel: `Próximo: ${nextDispatch}` },
-          { title: "Enviados", value: stats.enviado.toString(), icon: "✅" },
-        ].map((card, i) => (
-          <div key={i} className="bg-sidebar border border-border rounded-xl p-5 flex flex-col gap-1 shadow-sm">
-            <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <span>{card.icon}</span>
-              {card.title}
-            </span>
-            <div className="flex flex-col">
-              <span className="text-3xl font-bold">{card.value}</span>
-              {card.sublabel && (
-                <span className="text-xs text-muted-foreground font-medium mt-1">{card.sublabel}</span>
-              )}
+      {/* Seção 1: Funil de Prospecção */}
+      <div className="space-y-3">
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Funil de Prospecção (Leads)
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+          {[
+            { title: "Total Leads", value: stats.total.toString(), icon: "🗂️" },
+            { title: "Novos", value: stats.novo.toString(), icon: "✨" },
+            { title: "Msg Pronta", value: stats.pronto.toString(), icon: "🤖" },
+            { title: "Na Fila", value: stats.fila.toString(), icon: "⏳", sublabel: `Próximo: ${nextDispatch}` },
+            { title: "Enviados", value: stats.enviado.toString(), icon: "✅" },
+            { title: "Falhados", value: stats.falhou.toString(), icon: "❌" },
+          ].map((card, i) => (
+            <div key={i} className="bg-sidebar border border-border rounded-xl p-5 flex flex-col gap-1 shadow-sm">
+              <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <span>{card.icon}</span>
+                {card.title}
+              </span>
+              <div className="flex flex-col">
+                <span className="text-3xl font-bold">{card.value}</span>
+                {card.sublabel && (
+                  <span className="text-xs text-muted-foreground font-medium mt-1">{card.sublabel}</span>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+      </div>
+
+      {/* Seção 2: Faturamento & Recorrência */}
+      <div className="space-y-3">
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Faturamento & Recorrência (Manutenção de Sites)
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { title: "Clientes Ativos", value: financialMetrics.clientCount.toString(), icon: "👥" },
+            { 
+              title: "Faturamento MRR", 
+              value: financialMetrics.totalMRR.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 
+              icon: "💵" 
+            },
+            { 
+              title: "Recebido este Mês", 
+              value: financialMetrics.totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 
+              icon: "📈" 
+            },
+            { 
+              title: "Pendente este Mês", 
+              value: financialMetrics.totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 
+              icon: "📉" 
+            },
+          ].map((card, i) => (
+            <div key={i} className="bg-sidebar border border-border rounded-xl p-5 flex flex-col gap-1 shadow-sm">
+              <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <span>{card.icon}</span>
+                {card.title}
+              </span>
+              <div className="flex flex-col">
+                <span className="text-3xl font-bold text-indigo-950 dark:text-white">{card.value}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="bg-sidebar border border-border rounded-xl shadow-sm flex flex-col overflow-hidden">
@@ -888,6 +1040,9 @@ export default function LeadsPage() {
         isOpen={!!selectedLead} 
         onClose={() => setSelectedLead(null)} 
         lead={selectedLead} 
+        onGenerateIA={(l) => handleGenerateMessage(null, l)}
+        onQueueLead={(l) => handleQueueLead(null, l)}
+        onConvertToClient={handleConvertToClient}
       />
 
       {isBatchProcessing && (

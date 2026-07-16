@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { supabase } from "@/lib/supabase";
 import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 type SortField = "created_at" | "name" | "rating";
 type SortDir = "desc" | "asc";
@@ -108,8 +109,54 @@ export default function LeadsPage() {
     }
   };
 
-  const handleGenerateMessage = async (e: React.MouseEvent, lead: any) => {
-    e.stopPropagation();
+  const handleConvertToClient = async (lead: any) => {
+    if (!lead.name) return;
+
+    const priceInput = window.prompt(`Deseja converter o lead "${lead.name}" em cliente?\nDigite o valor da mensalidade (Ex: 399.90):`, "399.90");
+    if (priceInput === null) return; // cancelou
+
+    const monthlyPrice = parseFloat(priceInput.replace(',', '.'));
+    if (isNaN(monthlyPrice) || monthlyPrice < 0) {
+      toast.error("Valor inválido de mensalidade.");
+      return;
+    }
+
+    try {
+      const { data: existing } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('name', lead.name)
+        .maybeSingle();
+
+      if (existing) {
+        toast.warning("Um cliente com este nome já existe!");
+        return;
+      }
+
+      const domain = lead.website ? lead.website.replace(/https?:\/\//i, '').replace(/\/$/, '') : null;
+
+      const { error } = await supabase
+        .from('clients')
+        .insert({
+          name: lead.name,
+          domain: domain,
+          phone: lead.phone || null,
+          price: monthlyPrice,
+          setup_price: 297.00,
+          due_day: 10,
+        });
+
+      if (error) throw error;
+
+      toast.success(`Lead "${lead.name}" convertido em cliente com sucesso! 🎉`);
+    } catch (err: any) {
+      console.error("Erro ao converter lead:", err);
+      toast.error(`Erro ao converter lead: ${err.message}`);
+    }
+  };
+
+  const handleGenerateMessage = async (e: React.MouseEvent | null | undefined, lead: any) => {
+    if (e) e.stopPropagation();
     setLoadingLeadId(lead.id + '_ai');
     try {
       const res = await fetch('/api/ai-message', {
@@ -130,8 +177,8 @@ export default function LeadsPage() {
     }
   };
 
-  const handleQueueLead = async (e: React.MouseEvent, lead: any) => {
-    e.stopPropagation();
+  const handleQueueLead = async (e: React.MouseEvent | null | undefined, lead: any) => {
+    if (e) e.stopPropagation();
     setLoadingLeadId(lead.id + '_queue');
     try {
       const res = await fetch('/api/queue-lead', {
@@ -824,6 +871,9 @@ export default function LeadsPage() {
         isOpen={!!selectedLead} 
         onClose={() => setSelectedLead(null)} 
         lead={selectedLead} 
+        onGenerateIA={(l) => handleGenerateMessage(null, l)}
+        onQueueLead={(l) => handleQueueLead(null, l)}
+        onConvertToClient={handleConvertToClient}
       />
 
       {isBatchProcessing && (
