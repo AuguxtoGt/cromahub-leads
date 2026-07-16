@@ -1,21 +1,35 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
+import { z } from 'zod';
+
+const schema = z.object({
+  lead_id: z.string().uuid(),
+  text: z.string().min(1),
+});
 
 export async function POST(req: Request) {
   try {
     // Validação de autenticação via Bearer token (o mesmo usado pelo n8n)
     const authHeader = req.headers.get('authorization');
-    const secretKey = process.env.CRON_SECRET || 'crhm-leads-sec-9a8b7c6d5e4f3g2h1';
+    const secretKey = process.env.CRON_SECRET;
+
+    if (!secretKey) {
+      console.error('CRÍTICO: CRON_SECRET não configurada no ambiente.');
+      return NextResponse.json({ error: 'Configuração de servidor inválida' }, { status: 500 });
+    }
     
     if (!authHeader || authHeader !== `Bearer ${secretKey}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { lead_id, text } = await req.json();
+    const body = await req.json();
+    const parsed = schema.safeParse(body);
 
-    if (!lead_id || !text) {
-      return NextResponse.json({ error: 'Missing lead_id or text' }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Dados inválidos', details: parsed.error.format() }, { status: 400 });
     }
+
+    const { lead_id, text } = parsed.data;
 
     // Buscar o lead no banco para descobrir o user_id (dono) e o telefone
     const { data: lead, error: leadError } = await supabase

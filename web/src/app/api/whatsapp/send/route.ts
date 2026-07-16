@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getDbClient } from '@/lib/supabase-api';
+import { z } from 'zod';
+
+
+const schema = z.object({
+  chat_id: z.string().uuid().nullable().optional(),
+  remote_jid: z.string().min(1),
+  text: z.string().min(1),
+});
 
 const WAHA_API_URL = process.env.WAHA_API_URL || 'https://api.cromahub.cloud';
 const WAHA_API_KEY = process.env.WAHA_API_KEY || 'CromaHubWahaKey2026';
@@ -13,11 +21,14 @@ export async function POST(req: Request) {
     }
     const INSTANCE_NAME = `cromahub-${user.id}`;
     
-    const { chat_id, remote_jid, text } = await req.json();
+    const body = await req.json();
+    const parsed = schema.safeParse(body);
 
-    if (!remote_jid || !text) {
-      return NextResponse.json({ error: 'Faltando parâmetros: remote_jid e text são obrigatórios.' }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Dados inválidos', details: parsed.error.format() }, { status: 400 });
     }
+
+    const { chat_id, remote_jid, text } = parsed.data;
 
     let chatId = remote_jid;
     if (chatId.includes('@s.whatsapp.net')) {
