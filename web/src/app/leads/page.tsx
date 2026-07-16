@@ -386,6 +386,14 @@ export default function LeadsPage() {
       return true;
     })
     .sort((a, b) => {
+      // Leads enviados ou falhados vão para o final da lista (inativos)
+      const isInactive = (status?: string) => status === 'SENT' || status === 'FAILED';
+      const aInactive = isInactive(a.status_pipeline);
+      const bInactive = isInactive(b.status_pipeline);
+
+      if (aInactive && !bInactive) return 1;
+      if (!aInactive && bInactive) return -1;
+
       let valA: any, valB: any;
       if (sortField === "created_at") {
         valA = new Date(a.created_at).getTime();

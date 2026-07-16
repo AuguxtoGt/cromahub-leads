@@ -79,14 +79,8 @@ export default function LeadsPage() {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
         const updated = payload.new as any;
-        const dispatched = ['SENT', 'QUEUED', 'SENDING'].includes(updated.status_pipeline);
-        if (dispatched) {
-          // Move para o final — lead foi disparado
-          setLeads(prev => [...prev.filter(l => l.id !== updated.id), updated]);
-        } else {
-          // Atualiza no lugar sem mexer na ordem
-          setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
-        }
+        // O ordenamento por status/data já é feito no processedLeads.sort, então apenas atualizamos o lead no estado
+        setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, (payload) => {
         setLeads(prev => prev.filter(l => l.id !== (payload.old as any).id));
@@ -164,11 +158,8 @@ export default function LeadsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        // Move o lead para o final da lista (leads disparados ficam por último)
-        setLeads(prev => [
-          ...prev.filter(l => l.id !== lead.id),
-          data.lead,
-        ]);
+        // Atualiza o lead no estado — o ordenamento automático do frontend se encarrega de posicionar corretamente
+        setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
         // Atualiza o painel lateral se estiver aberto neste lead
         if (selectedLead?.id === lead.id) setSelectedLead(data.lead);
         toast.success('Lead adicionado à fila de disparo! ⏳');
@@ -200,11 +191,8 @@ export default function LeadsPage() {
         .single();
 
       if (!error && data) {
-        // Move o lead enviado para o final da lista
-        setLeads(prev => [
-          ...prev.filter(l => l.id !== lead.id),
-          data,
-        ]);
+        // Atualiza o lead no estado — o ordenamento automático do frontend se encarrega de posicionar corretamente
+        setLeads(prev => prev.map(l => l.id === lead.id ? data : l));
         if (selectedLead?.id === lead.id) setSelectedLead(data);
         toast.success('Mensagem aberta no WhatsApp. Lead marcado como Enviado ✓');
       } else {
@@ -377,11 +365,8 @@ export default function LeadsPage() {
         });
         const data = await res.json();
         if (data.success) {
-          // Move cada lead para o final conforme vai sendo enfileirado
-          setLeads(prev => [
-            ...prev.filter(l => l.id !== lead.id),
-            data.lead,
-          ]);
+          // Atualiza o lead no estado — o ordenamento automático do frontend se encarrega de posicionar corretamente
+          setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
         }
       } catch (err) {
         console.error('Erro no batch Queue', err);
@@ -451,6 +436,14 @@ export default function LeadsPage() {
       return true;
     })
     .sort((a, b) => {
+      // Leads enviados ou falhados vão para o final da lista (inativos)
+      const isInactive = (status?: string) => status === 'SENT' || status === 'FAILED';
+      const aInactive = isInactive(a.status_pipeline);
+      const bInactive = isInactive(b.status_pipeline);
+
+      if (aInactive && !bInactive) return 1;
+      if (!aInactive && bInactive) return -1;
+
       let valA: any, valB: any;
       if (sortField === "created_at") {
         valA = new Date(a.created_at).getTime();
