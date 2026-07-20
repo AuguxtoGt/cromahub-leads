@@ -118,6 +118,63 @@ export async function POST(req: Request) {
     const responseData = await response.json().catch(() => ({}));
     console.log(`[WAHA] ✅ Message sent to ${chatId}:`, JSON.stringify(responseData).substring(0, 200));
 
+    // ── PASSO 3: Salvar no banco para aparecer no CRM ─────────────────────
+    try {
+      const remoteJid = chatId;
+      const phone = remoteJid.split('@')[0];
+      
+      // Buscar ou criar o chat
+      let { data: chat } = await supabase
+        .from('whatsapp_chats')
+        .select('*')
+        .eq('phone', phone)
+        .eq('user_id', lead.user_id)
+        .maybeSingle();
+
+      if (!chat) {
+        const { data: newChat } = await supabase
+          .from('whatsapp_chats')
+          .insert({
+            phone,
+            name: lead.name || phone,
+            user_id: lead.user_id,
+            lead_id: lead.id,
+            chat_status: 'OPEN',
+            last_message_preview: text,
+            last_message_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+        chat = newChat;
+      } else {
+        await supabase
+          .from('whatsapp_chats')
+          .update({
+            last_message_preview: text,
+            last_message_at: new Date().toISOString(),
+            lead_id: lead.id
+          })
+          .eq('id', chat.id);
+      }
+
+      if (chat) {
+        const messageId = responseData?.id || responseData?.key?.id || `msg-${Date.now()}`;
+        
+        await supabase.from('whatsapp_messages').insert({
+          chat_id: chat.id,
+          remote_jid: remoteJid,
+          message_id: messageId,
+          from_me: true,
+          content: text,
+          media_type: 'TEXT',
+          status: 'SENT',
+          user_id: lead.user_id,
+        });
+      }
+    } catch (dbErr) {
+      console.error('[WAHA] Erro ao salvar mensagem enviada via n8n no banco:', dbErr);
+    }
+
     return NextResponse.json({ success: true, message: 'Message sent via WAHA', chatId });
 
   } catch (error: any) {
