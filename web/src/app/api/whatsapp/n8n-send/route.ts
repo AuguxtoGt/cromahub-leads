@@ -132,11 +132,11 @@ export async function POST(req: Request) {
         .maybeSingle();
 
       if (!chat) {
-        const { data: newChat } = await supabase
+        const { data: newChat, error: newChatErr } = await supabase
           .from('whatsapp_chats')
           .insert({
-            phone,
             remote_jid: remoteJid,
+            phone,
             name: lead.name || phone,
             user_id: lead.user_id,
             lead_id: lead.id,
@@ -146,6 +146,10 @@ export async function POST(req: Request) {
           })
           .select()
           .single();
+          
+        if (newChatErr) {
+          console.error('[WAHA] Erro ao criar chat:', newChatErr);
+        }
         chat = newChat;
       } else {
         await supabase
@@ -161,7 +165,7 @@ export async function POST(req: Request) {
       if (chat) {
         const messageId = responseData?.id || responseData?.key?.id || `msg-${Date.now()}`;
         
-        await supabase.from('whatsapp_messages').insert({
+        const { error: msgErr } = await supabase.from('whatsapp_messages').insert({
           chat_id: chat.id,
           remote_jid: remoteJid,
           message_id: messageId,
@@ -171,6 +175,10 @@ export async function POST(req: Request) {
           status: 'SENT',
           user_id: lead.user_id,
         });
+        
+        if (msgErr) {
+          console.error('[WAHA] Erro ao salvar message no banco:', msgErr);
+        }
       }
     } catch (dbErr) {
       console.error('[WAHA] Erro ao salvar mensagem enviada via n8n no banco:', dbErr);
