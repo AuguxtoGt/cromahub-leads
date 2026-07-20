@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     // Buscar o lead no banco para descobrir o user_id (dono) e o telefone
     const { data: lead, error: leadError } = await supabase
       .from('leads')
-      .select('id, user_id, phone')
+      .select('id, user_id, phone, name')
       .eq('id', lead_id)
       .single();
 
