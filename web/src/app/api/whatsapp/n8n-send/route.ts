@@ -136,6 +136,7 @@ export async function POST(req: Request) {
           .from('whatsapp_chats')
           .insert({
             phone,
+            remote_jid: remoteJid,
             name: lead.name || phone,
             user_id: lead.user_id,
             lead_id: lead.id,
