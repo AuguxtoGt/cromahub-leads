@@ -334,7 +334,7 @@ export default function WhatsAppPage() {
     setNewMessage("");
 
     try {
-      await fetch("/api/whatsapp/send", {
+      const res = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -343,8 +343,14 @@ export default function WhatsAppPage() {
           text,
         }),
       });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Erro ao enviar a mensagem. Verifique se o número é válido no WhatsApp.");
+      }
     } catch (e) {
       console.error("Erro ao enviar:", e);
+      alert("Erro ao enviar a mensagem.");
     } finally {
       setIsSending(false);
     }
@@ -641,10 +647,10 @@ export default function WhatsAppPage() {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground text-sm">
-                  {selectedChat.name}
+                  {(selectedChat.name || selectedChat.phone || '').replace(/%/g, '')}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  {selectedChat.phone_normalized || selectedChat.phone}
+                  {(selectedChat.phone_normalized || selectedChat.phone || '').replace(/%/g, '')}
                 </p>
               </div>
             </div>

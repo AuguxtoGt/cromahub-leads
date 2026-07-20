@@ -50,7 +50,7 @@ export async function POST(req: Request) {
         webhooks: [
           {
             url: `${APP_URL}/api/webhooks/waha?token=${WAHA_API_KEY}`,
-            events: ["message", "session.status"],
+            events: ["message", "message.ack", "session.status"],
             hmac: null
           }
         ]
@@ -187,11 +187,23 @@ export async function DELETE(req: Request) {
       headers: { 'X-Api-Key': WAHA_API_KEY, 'Accept': 'application/json' }
     });
 
-    // 2. Parar e Deletar a sessão
+    // 2. Parar a sessão
     await fetch(`${WAHA_API_URL}/api/sessions/${INSTANCE_NAME}/stop`, {
       method: 'POST',
       headers: { 'X-Api-Key': WAHA_API_KEY, 'Accept': 'application/json' }
     });
+
+    // 3. Deletar permanentemente os arquivos da sessão na WAHA
+    await fetch(`${WAHA_API_URL}/api/sessions/${INSTANCE_NAME}`, {
+      method: 'DELETE',
+      headers: { 'X-Api-Key': WAHA_API_KEY, 'Accept': 'application/json' }
+    });
+
+    // 4. Atualizar settings no Supabase
+    await supabase
+      .from('settings')
+      .update({ whatsapp_status: 'close' })
+      .eq('user_id', user.id);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

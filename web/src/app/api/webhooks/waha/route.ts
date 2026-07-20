@@ -68,7 +68,7 @@ async function findOrCreateChat(
     const insertPayload: Record<string, any> = {
       remote_jid: remoteJid,
       phone: phoneNormalized,
-      phone_normalized: phoneCore,
+      phone_normalized: phoneNormalized,
       name: lead?.name || pushName || phoneNormalized,
       last_message_preview: previewText,
       last_message_at: new Date().toISOString(),
@@ -111,7 +111,8 @@ async function saveMessage(
   content: string,
   mediaType: string,
   status: string,
-  timestamp: number
+  timestamp: number,
+  userId: string | null = null
 ) {
   const { data: existingMsg } = await supabase
     .from('whatsapp_messages')
@@ -129,18 +130,21 @@ async function saveMessage(
     return;
   }
 
+  const msgPayload: Record<string, any> = {
+    chat_id: chatId,
+    remote_jid: remoteJid,
+    message_id: messageId,
+    from_me: fromMe,
+    content,
+    media_type: mediaType,
+    status,
+    timestamp: new Date(timestamp * 1000).toISOString(),
+  };
+  if (userId) msgPayload.user_id = userId;
+
   await supabase
     .from('whatsapp_messages')
-    .insert({
-      chat_id: chatId,
-      remote_jid: remoteJid,
-      message_id: messageId,
-      from_me: fromMe,
-      content,
-      media_type: mediaType,
-      status,
-      timestamp: new Date(timestamp * 1000).toISOString(),
-    });
+    .insert(msgPayload);
 }
 
 export async function POST(req: Request) {
@@ -206,7 +210,8 @@ export async function POST(req: Request) {
           content,
           mediaType,
           msg.fromMe ? 'SENT' : 'RECEIVED',
-          msg.timestamp
+          msg.timestamp,
+          userId || chat.user_id || null
         );
 
         if (!msg.fromMe && chat.lead_id) {

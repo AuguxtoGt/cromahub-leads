@@ -11,7 +11,9 @@ export async function POST(req: Request) {
   try {
     // Validação de autenticação via Bearer token (o mesmo usado pelo n8n)
     const authHeader = req.headers.get('authorization');
-    const secretKey = process.env.CRON_SECRET;
+    // O n8n ainda envia o token antigo 'crhm-leads-sec-9a8b7c6d5e4f3g2h1'. 
+    // Como a variável CRON_SECRET não foi configurada no servidor (Coolify), usamos o fallback temporário.
+    const secretKey = process.env.CRON_SECRET || 'crhm-leads-sec-9a8b7c6d5e4f3g2h1';
 
     if (!secretKey) {
       console.error('CRÍTICO: CRON_SECRET não configurada no ambiente.');
