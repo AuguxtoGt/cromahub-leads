@@ -348,7 +348,6 @@ export default function LeadsPage() {
 
   const handleDeleteLead = async (e: React.MouseEvent, lead: any) => {
     e.stopPropagation();
-    if (!window.confirm(`Apagar "${lead.name}" permanentemente? Esta ação não pode ser desfeita.`)) return;
     
     try {
       const { error } = await supabase
