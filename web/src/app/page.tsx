@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers, Plus, Trash2, Download } from "lucide-react";
+import { Loader2, Sparkles, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, X, Layers, Plus, Trash2, Download, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import type { Lead } from "@/types/database";
 
@@ -884,9 +884,25 @@ export default function LeadsPage() {
                   className="grid grid-cols-8 gap-4 p-4 items-center text-sm hover:bg-muted/50 transition-colors cursor-pointer group"
                 >
                   <div className="col-span-4 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500 shrink-0">
-                      {lead.name.charAt(0).toUpperCase()}
-                    </div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        let mapUrl = '';
+                        if (lead.place_id) {
+                          mapUrl = `https://www.google.com/maps/place/?q=place_id:${lead.place_id}`;
+                        } else if (lead.formatted_address) {
+                          mapUrl = `https://www.google.com/maps/search/${encodeURIComponent(lead.formatted_address)}`;
+                        } else if (lead.name) {
+                          const addressSearch = [lead.name, lead.city, lead.state].filter(Boolean).join(', ');
+                          mapUrl = `https://www.google.com/maps/search/${encodeURIComponent(addressSearch)}`;
+                        }
+                        if (mapUrl) window.open(mapUrl, '_blank', 'noopener,noreferrer');
+                      }}
+                      className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-primary transition-colors shrink-0 group-hover:shadow-sm"
+                      title="Abrir no Google Maps"
+                    >
+                      <MapPin className="w-4 h-4" />
+                    </button>
                     <div className="flex flex-col truncate pr-2">
                       <span className="font-medium text-foreground truncate">{lead.name}</span>
                       {lead.website ? (
