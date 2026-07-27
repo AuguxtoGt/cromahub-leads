@@ -876,6 +876,16 @@ export default function LeadsPage() {
               const isGenerating = loadingLeadId === lead.id + '_ai';
               const isQueuing = loadingLeadId === lead.id + '_queue';
 
+              let mapUrl = '';
+              if (lead.place_id) {
+                mapUrl = `https://www.google.com/maps/place/?q=place_id:${lead.place_id}`;
+              } else if (lead.formatted_address) {
+                mapUrl = `https://www.google.com/maps/search/${encodeURIComponent(lead.formatted_address)}`;
+              } else if (lead.name) {
+                const addressSearch = [lead.name, lead.city, lead.state].filter(Boolean).join(', ');
+                mapUrl = `https://www.google.com/maps/search/${encodeURIComponent(addressSearch)}`;
+              }
+
               return (
                 <div 
                   key={lead.id} 
@@ -883,25 +893,22 @@ export default function LeadsPage() {
                   className="grid grid-cols-8 gap-4 p-4 items-center text-sm hover:bg-muted/50 transition-colors cursor-pointer group"
                 >
                   <div className="col-span-4 flex items-center gap-3">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        let mapUrl = '';
-                        if (lead.place_id) {
-                          mapUrl = `https://www.google.com/maps/place/?q=place_id:${lead.place_id}`;
-                        } else if (lead.formatted_address) {
-                          mapUrl = `https://www.google.com/maps/search/${encodeURIComponent(lead.formatted_address)}`;
-                        } else if (lead.name) {
-                          const addressSearch = [lead.name, lead.city, lead.state].filter(Boolean).join(', ');
-                          mapUrl = `https://www.google.com/maps/search/${encodeURIComponent(addressSearch)}`;
-                        }
-                        if (mapUrl) window.open(mapUrl, '_blank', 'noopener,noreferrer');
-                      }}
-                      className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-primary transition-colors shrink-0 group-hover:shadow-sm"
-                      title="Abrir no Google Maps"
-                    >
-                      <MapPin className="w-4 h-4" />
-                    </button>
+                    {mapUrl ? (
+                      <a 
+                        href={mapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-primary transition-colors shrink-0 group-hover:shadow-sm"
+                        title="Abrir no Google Maps"
+                      >
+                        <MapPin className="w-4 h-4" />
+                      </a>
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
+                        <MapPin className="w-4 h-4 opacity-50" />
+                      </div>
+                    )}
                     <div className="flex flex-col truncate pr-2">
                       <span className="font-medium text-foreground truncate">{lead.name}</span>
                       {lead.website ? (
