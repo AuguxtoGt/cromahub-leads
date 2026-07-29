@@ -326,6 +326,27 @@ export default function WhatsAppPage() {
     };
   }, [selectedChat?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ─── Fast Polling enquanto tenta conectar ──────────────────
+  useEffect(() => {
+    if (isConnected || isCheckingConnection) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/whatsapp/status');
+        const data = await res.json();
+        if (data.connected) {
+          setIsConnected(true);
+          setConnectionStatus('online');
+          setQrCode(null);
+        }
+      } catch (e) {
+        // Silencioso
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isConnected, isCheckingConnection]);
+
   // ─── Envio de mensagem ────────────────────────────────────
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChat || isSending) return;
