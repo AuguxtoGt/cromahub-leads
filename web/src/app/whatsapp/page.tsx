@@ -256,7 +256,8 @@ export default function WhatsAppPage() {
           if (payload.new.whatsapp_status) {
              const isOnline = payload.new.whatsapp_status === 'open';
              setConnectionStatus(isOnline ? 'online' : 'offline');
-             if (!isOnline) setIsConnected(false);
+             if (isOnline) setIsConnected(true);
+             else setIsConnected(false);
              setLastChecked(new Date());
           }
         }
