@@ -509,251 +509,54 @@ export default function WhatsAppPage() {
   }
 
   // ─────────────────────────────────────────────────────────
-  // UI Principal — Chat
+  // UI Principal — Conectado
   // ─────────────────────────────────────────────────────────
   return (
-    <div className="h-[calc(100vh-130px)] flex bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-      {/* ── Sidebar — Lista de Chats ── */}
-      <div className="w-80 border-r border-border flex flex-col bg-slate-50 flex-shrink-0">
-        {/* Header */}
-        <div className="p-4 border-b border-border bg-white flex items-center justify-between">
-          <h2 className="font-semibold text-lg text-foreground">Conversas</h2>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleForceDisconnect}
-              disabled={isDisconnecting}
-              title="Forçar Desconexão (Limpar Sessão)"
-              className="text-[10px] bg-red-100 text-red-600 hover:bg-red-200 px-2 py-1 rounded-md font-medium transition-colors"
-            >
-              {isDisconnecting ? "Saindo..." : "Sair"}
-            </button>
-
-            {/* Indicador de status em tempo real */}
-            <div className="flex items-center gap-1.5" title={lastChecked ? `Última verificação: ${lastChecked.toLocaleTimeString('pt-BR')}` : 'Verificando...'}>
-              {connectionStatus === 'online' && (
-                <>
-                  <Wifi className="w-3.5 h-3.5 text-green-600" />
-                  <span className="text-xs text-green-600 font-medium">Conectado</span>
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                </>
-              )}
-              {connectionStatus === 'offline' && (
-                <>
-                  <WifiOff className="w-3.5 h-3.5 text-red-500" />
-                  <span className="text-xs text-red-500 font-medium">Desconectado</span>
-                  <div className="w-2 h-2 rounded-full bg-red-500" />
-                </>
-              )}
-              {connectionStatus === 'checking' && (
-                <>
-                  <RefreshCcw className="w-3 h-3 text-slate-400 animate-spin" />
-                  <span className="text-xs text-slate-400">Verificando</span>
-                </>
-              )}
-            </div>
-          </div>
+    <div className="h-[calc(100vh-2rem)] flex items-center justify-center">
+      <div className="bg-white p-8 rounded-xl border border-border shadow-sm max-w-md w-full text-center flex flex-col items-center">
+        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
+          <Check className="w-8 h-8" />
         </div>
-
-        {/* Busca e filtros */}
-        <div className="p-3 border-b border-border bg-white flex flex-col gap-2">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Pesquisar..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none"
-            />
+        <h2 className="text-xl font-bold text-foreground mb-2">
+          WhatsApp Conectado
+        </h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          Seu número está conectado e pronto para realizar os disparos automáticos de prospecção.
+        </p>
+        
+        <div className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-border mb-6">
+          <div className="flex items-center gap-2">
+            <Wifi className="w-4 h-4 text-green-600" />
+            <span className="text-sm font-medium text-slate-700">Status</span>
           </div>
-          <div className="flex gap-1 overflow-x-auto pb-1 hide-scrollbar">
-            {["ALL", "UNANSWERED", "ANSWERED", "INTERESTED", "CLOSED"].map(
-              (f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                    filter === f
-                      ? "bg-green-100 text-green-700"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {f === "ALL"
-                    ? "Todos"
-                    : f === "UNANSWERED"
-                    ? "Não Resp."
-                    : f === "ANSWERED"
-                    ? "Respondido"
-                    : f === "INTERESTED"
-                    ? "Interessado"
-                    : "Fechado"}
-                </button>
-              )
+          <div className="flex items-center gap-1.5" title={lastChecked ? `Última verificação: ${lastChecked.toLocaleTimeString('pt-BR')}` : 'Verificando...'}>
+            {connectionStatus === 'online' ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-sm text-green-600 font-medium">Online e operando</span>
+              </>
+            ) : connectionStatus === 'offline' ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+                <span className="text-sm text-red-500 font-medium">Offline</span>
+              </>
+            ) : (
+              <>
+                <RefreshCcw className="w-3 h-3 text-slate-400 animate-spin" />
+                <span className="text-sm text-slate-400 font-medium">Verificando...</span>
+              </>
             )}
           </div>
         </div>
 
-        {/* Lista */}
-        <div className="flex-1 overflow-y-auto">
-          {filteredChats.map((chat) => (
-            <button
-              key={chat.id}
-              onClick={() => setSelectedChat(chat)}
-              className={`w-full text-left p-3 border-b border-border hover:bg-slate-100 flex gap-3 transition-colors ${
-                selectedChat?.id === chat.id ? "bg-green-50" : "bg-white"
-              }`}
-            >
-              <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-emerald-200 rounded-full flex-shrink-0 flex items-center justify-center text-green-700 font-semibold text-sm overflow-hidden">
-                {chat.name?.substring(0, 2).toUpperCase() || "??"}
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <div className="flex justify-between items-baseline mb-0.5">
-                  <h3 className="font-medium text-sm text-foreground truncate">
-                    {chat.name || chat.phone}
-                  </h3>
-                  <span className="text-[10px] text-muted-foreground flex-shrink-0 ml-1">
-                    {formatChatTime(chat.last_message_at)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-muted-foreground truncate pr-2">
-                    {chat.last_message_preview || "..."}
-                  </p>
-                  {(chat.unread_count || 0) > 0 && (
-                    <span className="bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center flex-shrink-0">
-                      {chat.unread_count}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </button>
-          ))}
-          {filteredChats.length === 0 && (
-            <div className="p-8 text-center text-muted-foreground text-sm">
-              Nenhuma conversa encontrada.
-            </div>
-          )}
-        </div>
+        <button
+          onClick={handleForceDisconnect}
+          disabled={isDisconnecting}
+          className="px-6 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-lg transition-colors border border-red-200 w-full"
+        >
+          {isDisconnecting ? "Desconectando..." : "Desconectar WhatsApp"}
+        </button>
       </div>
-
-      {/* ── Área de Chat ── */}
-      {selectedChat ? (
-        <div className="flex-1 flex flex-col bg-[#efeae2] min-w-0">
-          {/* Header do chat */}
-          <div className="px-4 py-3 bg-white border-b border-border flex items-center justify-between shadow-sm z-10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-100 to-emerald-200 rounded-full flex items-center justify-center text-green-700 font-semibold text-sm">
-                {selectedChat.name?.substring(0, 2).toUpperCase() || "??"}
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground text-sm">
-                  {(selectedChat.name || selectedChat.phone || '').replace(/%/g, '')}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {(selectedChat.phone_normalized || selectedChat.phone || '').replace(/%/g, '')}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedChat.chat_status || "UNANSWERED"}
-                onChange={(e) => handleUpdateStatus(e.target.value)}
-                className="text-xs font-medium bg-slate-100 border-none rounded-md px-2 py-1 outline-none cursor-pointer focus:ring-2 focus:ring-green-500"
-              >
-                <option value="UNANSWERED">Não Respondido</option>
-                <option value="ANSWERED">Respondido</option>
-                <option value="INTERESTED">Interessado</option>
-                <option value="CLOSED">Fechado</option>
-              </select>
-
-              <button
-                onClick={handleDeleteChat}
-                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                title="Apagar conversa"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Mensagens */}
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
-            {messages.map((msg) => {
-              const isMe = msg.from_me;
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex ${isMe ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[70%] rounded-lg px-3 py-2 shadow-sm text-sm ${
-                      isMe
-                        ? "bg-[#d9fdd3] text-slate-800 rounded-tr-none"
-                        : "bg-white text-slate-800 rounded-tl-none"
-                    }`}
-                  >
-                    <MessageContent
-                      content={msg.content}
-                      mediaType={msg.media_type || "TEXT"}
-                    />
-                    <div className="flex items-center justify-end gap-1 mt-1">
-                      <span className="text-[10px] text-slate-500">
-                        {formatTime(msg.timestamp)}
-                      </span>
-                      {isMe && <StatusIcon status={msg.status} />}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {/* Âncora para auto-scroll */}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input de mensagem */}
-          <div className="p-3 bg-slate-100 flex items-end gap-2">
-            <textarea
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              placeholder="Digite uma mensagem"
-              className="flex-1 resize-none max-h-32 min-h-[44px] p-3 rounded-lg border-none focus:ring-0 outline-none shadow-sm text-sm"
-              rows={1}
-              disabled={isSending}
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={!newMessage.trim() || isSending}
-              className="p-2.5 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg transition-colors shadow-sm flex-shrink-0"
-            >
-              {isSending ? (
-                <RefreshCcw className="w-5 h-5 animate-spin" />
-              ) : (
-                <Send className="w-5 h-5 ml-0.5" />
-              )}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 text-center p-8">
-          <div className="w-24 h-24 bg-slate-200 rounded-full flex items-center justify-center text-slate-400 mb-4">
-            <QrCode className="w-10 h-10" />
-          </div>
-          <h2 className="text-2xl font-light text-slate-600 mb-2">
-            WhatsApp Conectado
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-md">
-            Selecione uma conversa ao lado para começar a conversar com seus
-            leads.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
