@@ -10,7 +10,7 @@ const schema = z.object({
 });
 
 const WAHA_API_URL = process.env.WAHA_API_URL || 'https://api.cromahub.cloud';
-const WAHA_API_KEY = process.env.WAHA_API_KEY || 'CromaHubWahaKey2026';
+const WAHA_API_KEY = process.env.WAHA_API_KEY as string;
 
 export async function POST(req: Request) {
   try {

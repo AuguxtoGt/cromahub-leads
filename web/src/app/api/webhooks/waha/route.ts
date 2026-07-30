@@ -151,7 +151,7 @@ export async function POST(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const token = searchParams.get('token');
-    const wahaKey = process.env.WAHA_API_KEY || 'CromaHubWahaKey2026';
+    const wahaKey = process.env.WAHA_API_KEY as string;
 
     if (!token || token !== wahaKey) {
       console.warn('[Webhook WAHA] FALHA DE AUTENTICAÇÃO: Token ausente ou inválido.');

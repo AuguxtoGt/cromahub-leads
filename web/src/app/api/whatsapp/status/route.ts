@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDbClient } from '@/lib/supabase-api';
 
 const WAHA_API_URL = process.env.WAHA_API_URL || 'https://api.cromahub.cloud';
-const WAHA_API_KEY = process.env.WAHA_API_KEY || 'CromaHubWahaKey2026';
+const WAHA_API_KEY = process.env.WAHA_API_KEY as string;
 
 // Rota leve que só verifica o estado da conexão — sem criar/deletar nada
 export async function GET(req: Request) {

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDbClient } from '@/lib/supabase-api';
 
 const WAHA_API_URL = process.env.WAHA_API_URL || 'https://api.cromahub.cloud';
-const WAHA_API_KEY = process.env.WAHA_API_KEY || 'CromaHubWahaKey2026';
+const WAHA_API_KEY = process.env.WAHA_API_KEY as string;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://leads.cromahub.cloud';
 
 // ─── GET: verifica o estado da instância ─────────────────

@@ -11,12 +11,10 @@ export async function POST(req: Request) {
   try {
     // Validação de autenticação via Bearer token (o mesmo usado pelo n8n)
     const authHeader = req.headers.get('authorization');
-    // O n8n ainda envia o token antigo 'crhm-leads-sec-9a8b7c6d5e4f3g2h1'. 
-    // Como a variável CRON_SECRET não foi configurada no servidor (Coolify), usamos o fallback temporário.
-    const secretKey = process.env.CRON_SECRET || 'crhm-leads-sec-9a8b7c6d5e4f3g2h1';
+    const secretKey = process.env.API_KEY as string;
 
     if (!secretKey) {
-      console.error('CRÍTICO: CRON_SECRET não configurada no ambiente.');
+      console.error('CRÍTICO: API_KEY não configurada no ambiente.');
       return NextResponse.json({ error: 'Configuração de servidor inválida' }, { status: 500 });
     }
     
@@ -49,7 +47,7 @@ export async function POST(req: Request) {
     }
 
     const WAHA_API_URL = process.env.WAHA_API_URL || 'https://api.cromahub.cloud';
-    const WAHA_API_KEY = process.env.WAHA_API_KEY || 'CromaHubWahaKey2026';
+    const WAHA_API_KEY = process.env.WAHA_API_KEY as string;
     
     // O nome da sessão é padronizado por tenant
     const sessionName = `cromahub-${lead.user_id}`;
