@@ -16,6 +16,10 @@ export async function POST(req: Request) {
     }
 
     const supabase = await getDbClient(req);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
 
     const { keyword, location, filterNoWebsite } = await req.json();
     
@@ -135,12 +139,13 @@ export async function POST(req: Request) {
             rating: place.rating || null,
             user_ratings_total: place.userRatingCount || null,
             types: place.types || [],
-            status: 'RAW'
+            status: 'RAW',
+            user_id: user.id,
           };
 
           const { data: inserted, error } = await supabase
             .from('leads')
-            .upsert(leadData, { onConflict: 'place_id' })
+            .upsert(leadData, { onConflict: 'place_id,user_id', ignoreDuplicates: false })
             .select()
             .single();
 

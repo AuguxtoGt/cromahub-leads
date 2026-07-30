@@ -20,6 +20,10 @@ export async function POST(req: Request) {
     }
 
     const supabase = await getDbClient(req);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
 
     const body = await req.json();
     const parsed = schema.safeParse(body);
@@ -87,11 +91,11 @@ Com base nesse feedback, reescreva o prompt para que o agente melhore nas próxi
       return NextResponse.json({ error: 'IA não retornou prompt melhorado' }, { status: 500 });
     }
 
-    // Buscar versão atual para histórico
+    // Buscar versão atual para histórico (filtrado pelo usuário logado)
     const { data: currentSettings } = await supabase
       .from('settings')
       .select('system_prompt, prompt_history, version')
-      .eq('id', 'default')
+      .eq('user_id', user.id)
       .single();
 
     const currentVersion = currentSettings?.version || 1;
@@ -108,14 +112,15 @@ Com base nesse feedback, reescreva o prompt para que o agente melhore nas próxi
       ...history,
     ].slice(0, 10);
 
-    // Salva o prompt melhorado
-    await supabase.from('settings').upsert({
-      id: 'default',
-      system_prompt: improvedPrompt,
-      prompt_history: newHistory,
-      version: currentVersion + 1,
-      updated_at: new Date().toISOString(),
-    });
+    // Salva o prompt melhorado no registro do usuário
+    await supabase.from('settings')
+      .update({
+        system_prompt: improvedPrompt,
+        prompt_history: newHistory,
+        version: currentVersion + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id);
 
     return NextResponse.json({ 
       success: true, 
