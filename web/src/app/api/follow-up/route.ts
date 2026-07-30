@@ -19,6 +19,7 @@ export async function GET(req: Request) {
       .eq('status_pipeline', 'SENT')
       // sent_at menor que 24h atrás significa que já passou de 24h
       .lt('sent_at', yesterday.toISOString()) 
+      .not('ai_follow_up', 'is', null) // <-- Só faz follow up de quem tem follow up gerado
       .order('sent_at', { ascending: true })
       .limit(limit);
 
