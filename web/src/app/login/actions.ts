@@ -50,10 +50,7 @@ export async function register(formData: FormData) {
 export async function forgotPassword(formData: FormData) {
   const supabase = await createClient()
   const headersList = await headers()
-  const origin =
-    headersList.get('origin') ||
-    (headersList.get('host') ? `https://${headersList.get('host')}` : null) ||
-    'https://leads.cromahub.cloud'
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://leads.cromahub.cloud';
 
   const email = formData.get('email') as string
 
