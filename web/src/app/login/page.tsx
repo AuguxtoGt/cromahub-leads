@@ -356,6 +356,7 @@ const SignInCard = () => {
               </form>
             ) : (
               <>
+                {/* 
                 <div className="flex bg-gray-100 p-1 rounded-lg mb-6">
                   <button
                     type="button"
@@ -376,6 +377,7 @@ const SignInCard = () => {
                     Criar Conta
                   </button>
                 </div>
+                */}
 
                 <form className="space-y-5" onSubmit={() => setIsLoading(true)}>
                   <div>
