@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 import { z } from 'zod';
+import { checkRateLimit } from '@/utils/rate-limit';
 
 const schema = z.object({
   lead_id: z.string().uuid(),
@@ -9,6 +10,12 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const ip = req.headers.get('x-forwarded-for') ?? 'anonymous';
+    const rateLimit = await checkRateLimit(ip);
+    if (!rateLimit.success) {
+      return NextResponse.json({ error: rateLimit.message }, { status: 429 });
+    }
+
     // Validação de autenticação via Bearer token (o mesmo usado pelo n8n)
     const authHeader = req.headers.get('authorization');
     const secretKey = process.env.API_KEY as string;

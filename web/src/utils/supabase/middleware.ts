@@ -86,6 +86,17 @@ export async function updateSession(request: NextRequest) {
     // Se for uma chamada de API, verificar API KEY
     if (request.nextUrl.pathname.startsWith('/api/')) {
       if (!hasValidApiKey()) {
+         const ip = request.headers.get('x-forwarded-for') ?? 'anonymous';
+         await supabase.from('webhook_debug_log').insert({
+           id: crypto.randomUUID(),
+           event: 'security_alert',
+           payload: JSON.stringify({
+             reason: 'Invalid API_KEY',
+             path: request.nextUrl.pathname,
+             ip: ip
+           }),
+           created_at: new Date().toISOString()
+         });
          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
     } else {

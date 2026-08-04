@@ -5,8 +5,15 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { createClient } from '@/utils/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { checkRateLimit } from '@/utils/rate-limit'
 
 export async function login(formData: FormData) {
+  const ip = headers().get('x-forwarded-for') ?? 'anonymous'
+  const rateLimit = await checkRateLimit(ip)
+  if (!rateLimit.success) {
+    redirect('/login?message=Too many requests. Please try again later.')
+  }
+
   const supabase = await createClient()
 
   const data = {
@@ -25,6 +32,12 @@ export async function login(formData: FormData) {
 }
 
 export async function register(formData: FormData) {
+  const ip = headers().get('x-forwarded-for') ?? 'anonymous'
+  const rateLimit = await checkRateLimit(ip)
+  if (!rateLimit.success) {
+    redirect('/login?message=Too many requests. Please try again later.&tab=register')
+  }
+
   const supabase = await createClient()
 
   const email = formData.get('email') as string
@@ -49,6 +62,12 @@ export async function register(formData: FormData) {
 }
 
 export async function forgotPassword(formData: FormData) {
+  const ip = headers().get('x-forwarded-for') ?? 'anonymous'
+  const rateLimit = await checkRateLimit(ip)
+  if (!rateLimit.success) {
+    redirect('/login?message=Too many requests. Please try again later.')
+  }
+
   const supabase = await createClient()
   const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://leads.cromahub.cloud';
 
