@@ -242,34 +242,30 @@ const SignInCard = () => {
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
-    // Process Supabase Auth Hash se o fluxo implicito (Implicit Flow) for utilizado (ex: convites sem PKCE)
-    if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
-      setIsProcessingHash(true);
-      
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
-          if (window.location.hash.includes('type=invite') || window.location.hash.includes('type=recovery')) {
-            router.push('/auth/reset-password');
-          } else {
-            router.push('/');
-          }
+    const handleImplicitFlow = async () => {
+      if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+        setIsProcessingHash(true);
+        
+        // Explicitly get session to force the client to process the URL hash
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error || !data.session) {
+           console.error("Auth session missing after implicit flow:", error);
+           setIsProcessingHash(false);
+           router.push('/login?message=' + encodeURIComponent('O link de convite é inválido ou expirou.'));
+           return;
         }
-      });
-      
-      // Fallback timeout just in case event doesn't fire
-      const fallback = setTimeout(() => {
+
+        // Session successfully established!
         if (window.location.hash.includes('type=invite') || window.location.hash.includes('type=recovery')) {
            router.push('/auth/reset-password');
         } else {
            router.push('/');
         }
-      }, 2000);
-      
-      return () => {
-        subscription.unsubscribe();
-        clearTimeout(fallback);
-      };
-    }
+      }
+    };
+    
+    handleImplicitFlow();
   }, [router]);
 
   if (isProcessingHash) {
