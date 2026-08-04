@@ -44,6 +44,13 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/auth/callback') ||
     request.nextUrl.pathname.startsWith('/auth/reset-password');
 
+  // Intercepta auth code da url (ex: convite do supabase admin que cai no Site URL)
+  if (request.nextUrl.searchParams.has('code') && !request.nextUrl.pathname.startsWith('/auth/callback')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/callback'
+    return NextResponse.redirect(url)
+  }
+
   // API Key mechanism for n8n to call protected APIs without a browser session
   const hasValidApiKey = () => {
     const authHeader = request.headers.get('authorization');
