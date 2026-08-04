@@ -44,8 +44,16 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/auth/callback') ||
     request.nextUrl.pathname.startsWith('/auth/reset-password');
 
+
   // Intercepta auth code da url (ex: convite do supabase admin que cai no Site URL)
   if (request.nextUrl.searchParams.has('code') && !request.nextUrl.pathname.startsWith('/auth/callback')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/callback'
+    return NextResponse.redirect(url)
+  }
+
+  // Intercepta token+type da url (fluxo de convite via Dashboard do Supabase)
+  if (request.nextUrl.searchParams.has('token') && request.nextUrl.searchParams.has('type') && !request.nextUrl.pathname.startsWith('/auth/callback')) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/callback'
     return NextResponse.redirect(url)
