@@ -63,10 +63,22 @@ export async function updateSession(request: NextRequest) {
   const hasValidApiKey = () => {
     const authHeader = request.headers.get('authorization');
     const apiKey = process.env.API_KEY;
-    if (apiKey && authHeader && authHeader === `Bearer ${apiKey}`) {
-      return true;
+    
+    if (!apiKey || !authHeader) return false;
+    
+    const expected = `Bearer ${apiKey}`;
+    
+    // Constant-time string comparison to prevent timing attacks
+    if (authHeader.length !== expected.length) {
+      return false;
     }
-    return false;
+    
+    let result = 0;
+    for (let i = 0; i < expected.length; i++) {
+      result |= expected.charCodeAt(i) ^ authHeader.charCodeAt(i);
+    }
+    
+    return result === 0;
   };
 
   // Se não estiver logado e tentar acessar rota protegida
