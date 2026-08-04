@@ -246,21 +246,41 @@ const SignInCard = () => {
       if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         setIsProcessingHash(true);
         
-        // Explicitly get session to force the client to process the URL hash
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error || !data.session) {
-           console.error("Auth session missing after implicit flow:", error);
-           setIsProcessingHash(false);
-           router.push('/login?message=' + encodeURIComponent('O link de convite é inválido ou expirou.'));
-           return;
-        }
+        try {
+          const hashStr = window.location.hash.substring(1); // remove '#'
+          const hashParams = new URLSearchParams(hashStr);
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          const type = hashParams.get('type');
+          
+          if (accessToken && refreshToken) {
+            // Como usamos @supabase/ssr (PKCE por padrão), o cliente ignora o hash.
+            // Precisamos forçar a criação da sessão manualmente com os tokens do hash.
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
+            
+            if (error || !data.session) {
+               console.error("Auth session error manually setting tokens:", error);
+               setIsProcessingHash(false);
+               router.push('/login?message=' + encodeURIComponent('O link de convite é inválido ou expirou.'));
+               return;
+            }
 
-        // Session successfully established!
-        if (window.location.hash.includes('type=invite') || window.location.hash.includes('type=recovery')) {
-           router.push('/auth/reset-password');
-        } else {
-           router.push('/');
+            // Session successfully established!
+            if (type === 'invite' || type === 'recovery') {
+               router.push('/auth/reset-password');
+            } else {
+               router.push('/');
+            }
+          } else {
+             setIsProcessingHash(false);
+             router.push('/login?message=' + encodeURIComponent('O link de convite está malformado.'));
+          }
+        } catch (err) {
+          console.error("Unexpected error parsing hash:", err);
+          setIsProcessingHash(false);
         }
       }
     };
