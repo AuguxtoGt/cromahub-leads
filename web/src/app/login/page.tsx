@@ -1,10 +1,11 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import React, { useRef, useEffect, useState, Suspense } from "react";
 import { Eye, EyeOff, ArrowRight, ArrowLeft, Mail, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { login, register, forgotPassword } from "./actions";
+import { supabase } from "@/lib/supabase";
 
 // Helper function to merge class names
 const cn = (...classes: string[]) => {
@@ -227,6 +228,7 @@ const DotMap = () => {
 
 const SignInCard = () => {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const message = searchParams.get("message");
   const type = searchParams.get("type"); // "success" | undefined (default = error)
   const initialTab = searchParams.get("tab") === "register" ? "register" : "login";
@@ -234,9 +236,52 @@ const SignInCard = () => {
   const [activeTab, setActiveTab] = useState<"login" | "register">(initialTab);
   const [showForgot, setShowForgot] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingHash, setIsProcessingHash] = useState(false);
 
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    // Process Supabase Auth Hash se o fluxo implicito (Implicit Flow) for utilizado (ex: convites sem PKCE)
+    if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+      setIsProcessingHash(true);
+      
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
+          if (window.location.hash.includes('type=invite') || window.location.hash.includes('type=recovery')) {
+            router.push('/auth/reset-password');
+          } else {
+            router.push('/');
+          }
+        }
+      });
+      
+      // Fallback timeout just in case event doesn't fire
+      const fallback = setTimeout(() => {
+        if (window.location.hash.includes('type=invite') || window.location.hash.includes('type=recovery')) {
+           router.push('/auth/reset-password');
+        } else {
+           router.push('/');
+        }
+      }, 2000);
+      
+      return () => {
+        subscription.unsubscribe();
+        clearTimeout(fallback);
+      };
+    }
+  }, [router]);
+
+  if (isProcessingHash) {
+    return (
+      <div className="flex w-full h-full items-center justify-center">
+        <div className="flex flex-col items-center">
+           <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-4" />
+           <p className="text-gray-600 font-medium">Validando seu acesso...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="flex w-full h-full items-center justify-center">
