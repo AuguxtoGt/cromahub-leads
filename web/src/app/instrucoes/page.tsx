@@ -251,77 +251,7 @@ export default function InstrucoesPage() {
         </button>
       </div>
 
-      {/* Regras de Disparo */}
-      <div className="bg-sidebar border border-border rounded-xl p-6 shadow-sm flex flex-col gap-5">
-        <div className="border-b border-border pb-3">
-          <h2 className="font-semibold text-foreground text-lg flex items-center gap-2">
-            <Zap className="w-5 h-5 text-amber-500" /> Regras de Disparo
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Defina os horários e o limite diário para envio automático de mensagens pelo n8n.
-          </p>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" /> Início dos disparos
-            </label>
-            <div className="flex items-center border border-border rounded-md overflow-hidden focus-within:border-primary transition-all">
-              <input
-                type="number" min={0} max={23}
-                value={settings.dispatch_start_hour}
-                onChange={e => setSettings(s => ({ ...s, dispatch_start_hour: Number(e.target.value) }))}
-                className="flex-1 px-3 py-2 text-sm outline-none bg-white"
-              />
-              <span className="px-3 py-2 bg-muted text-muted-foreground text-sm border-l border-border">h</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Após esse horário os envios começam</p>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" /> Fim dos disparos
-            </label>
-            <div className="flex items-center border border-border rounded-md overflow-hidden focus-within:border-primary transition-all">
-              <input
-                type="number" min={0} max={23}
-                value={settings.dispatch_end_hour}
-                onChange={e => setSettings(s => ({ ...s, dispatch_end_hour: Number(e.target.value) }))}
-                className="flex-1 px-3 py-2 text-sm outline-none bg-white"
-              />
-              <span className="px-3 py-2 bg-muted text-muted-foreground text-sm border-l border-border">h</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Após esse horário os envios param</p>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Limite Diário
-            </label>
-            <div className="flex items-center border border-border rounded-md overflow-hidden focus-within:border-primary transition-all">
-              <input
-                type="number" min={1} max={500}
-                value={settings.dispatch_daily_limit}
-                onChange={e => setSettings(s => ({ ...s, dispatch_daily_limit: Number(e.target.value) }))}
-                className="flex-1 px-3 py-2 text-sm outline-none bg-white"
-              />
-              <span className="px-3 py-2 bg-muted text-muted-foreground text-sm border-l border-border">msg/dia</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Máximo de mensagens enviadas por dia</p>
-          </div>
-        </div>
-
-        <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-4 flex items-start gap-3">
-          <Zap className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-amber-800">Intervalo entre disparos: 3 a 6 minutos (aleatório)</p>
-            <p className="text-xs text-amber-600 mt-0.5">
-              O intervalo é dinâmico e aleatório entre 3 e 6 minutos para evitar marcação como spam e reduzir drasticamente o risco de bloqueios no WhatsApp.
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* System Prompt */}
       <div className="bg-sidebar border border-border rounded-xl p-6 shadow-sm flex flex-col gap-5">
