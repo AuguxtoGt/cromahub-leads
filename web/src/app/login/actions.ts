@@ -8,7 +8,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { checkRateLimit } from '@/utils/rate-limit'
 
 export async function login(formData: FormData) {
-  const ip = headers().get('x-forwarded-for') ?? 'anonymous'
+  const ip = (await headers()).get('x-forwarded-for') ?? 'anonymous'
   const rateLimit = await checkRateLimit(ip)
   if (!rateLimit.success) {
     redirect('/login?message=Too many requests. Please try again later.')
@@ -32,7 +32,7 @@ export async function login(formData: FormData) {
 }
 
 export async function register(formData: FormData) {
-  const ip = headers().get('x-forwarded-for') ?? 'anonymous'
+  const ip = (await headers()).get('x-forwarded-for') ?? 'anonymous'
   const rateLimit = await checkRateLimit(ip)
   if (!rateLimit.success) {
     redirect('/login?message=Too many requests. Please try again later.&tab=register')
@@ -62,7 +62,7 @@ export async function register(formData: FormData) {
 }
 
 export async function forgotPassword(formData: FormData) {
-  const ip = headers().get('x-forwarded-for') ?? 'anonymous'
+  const ip = (await headers()).get('x-forwarded-for') ?? 'anonymous'
   const rateLimit = await checkRateLimit(ip)
   if (!rateLimit.success) {
     redirect('/login?message=Too many requests. Please try again later.')
