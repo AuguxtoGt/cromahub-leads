@@ -108,6 +108,19 @@ export async function POST(req: Request) {
         const data = await apiResponse.json();
         const places = data.places || [];
 
+        if (places.length > 0) {
+          const placeIds = places.map((p: any) => p.id);
+          const { data: history } = await supabase
+            .from('extraction_history')
+            .select('place_id')
+            .in('place_id', placeIds)
+            .eq('user_id', user.id);
+            
+          if (history) {
+            history.forEach(h => seenPlaceIds.add(h.place_id));
+          }
+        }
+
         // Processar e Salvar no Supabase
         for (const place of places) {
           if (processedCount >= TARGET_LEADS) break;
@@ -156,6 +169,12 @@ export async function POST(req: Request) {
             .single();
 
           if (!error && inserted) {
+            // Salva no histórico para nunca mais ser extraído por esse usuário
+            await supabase.from('extraction_history').upsert({
+              user_id: user.id,
+              place_id: place.id
+            }, { onConflict: 'user_id,place_id', ignoreDuplicates: true });
+
             insertedLeads.push(inserted);
             processedCount++;
           }
