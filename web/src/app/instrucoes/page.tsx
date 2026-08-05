@@ -364,76 +364,7 @@ export default function InstrucoesPage() {
         </div>
       </div>
 
-      {/* Mensagens que Funcionaram */}
-      <div className="bg-sidebar border border-border rounded-xl p-6 shadow-sm flex flex-col gap-5">
-        <div className="flex items-start justify-between border-b border-border pb-3">
-          <div>
-            <h2 className="font-semibold text-foreground text-lg">✅ Mensagens que Funcionaram</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Cole aqui mensagens reais que geraram resposta. A IA vai aprender o estilo e o tom delas.
-            </p>
-          </div>
-          <button
-            onClick={() => setAddingExample(true)}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> Adicionar
-          </button>
-        </div>
 
-        {addingExample && (
-          <div className="bg-green-50/50 border border-green-200 rounded-lg p-4 flex flex-col gap-3">
-            <input
-              type="text"
-              value={newExample.label}
-              onChange={e => setNewExample(n => ({ ...n, label: e.target.value }))}
-              className="px-3 py-2 border border-border rounded-md text-sm outline-none focus:border-green-500 bg-white"
-              placeholder="Rótulo (ex: 'Pet Shop - Abordagem Fria')"
-            />
-            <textarea
-              value={newExample.text}
-              onChange={e => setNewExample(n => ({ ...n, text: e.target.value }))}
-              rows={4}
-              className="w-full px-3 py-2 border border-border rounded-md text-sm outline-none focus:border-green-500 resize-none bg-white"
-              placeholder="Cole aqui a mensagem completa que funcionou..."
-            />
-            <div className="flex gap-2">
-              <button onClick={addExample}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors">
-                <ThumbsUp className="w-3.5 h-3.5" /> Salvar Exemplo
-              </button>
-              <button onClick={() => { setAddingExample(false); setNewExample({ text: "", label: "" }); }}
-                className="px-4 py-2 border border-border rounded-md text-sm font-medium hover:bg-muted transition-colors">
-                Cancelar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {examples.length === 0 && !addingExample ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">
-            <ThumbsUp className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p>Nenhum exemplo cadastrado. Quando uma mensagem der resultado, adicione-a aqui.</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {examples.map((ex) => (
-              <div key={ex.id} className="bg-white border border-border rounded-lg p-4 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-green-600 flex items-center gap-1">
-                    <ThumbsUp className="w-3 h-3" /> {ex.label}
-                  </span>
-                  <button onClick={() => removeExample(ex.id)}
-                    className="text-muted-foreground hover:text-red-500 transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ex.text}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* Testar Agente */}
       <div className="bg-sidebar border border-border rounded-xl p-6 shadow-sm flex flex-col gap-5">

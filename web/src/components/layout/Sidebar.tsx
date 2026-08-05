@@ -5,7 +5,6 @@ import {
   MessageCircle, 
   Briefcase,
   Settings,
-  HelpCircle,
   LayoutDashboard,
   Sparkles
 } from 'lucide-react';
@@ -23,7 +22,6 @@ const MENU_ITEMS = [
 
 const BOTTOM_ITEMS = [
   { name: 'Configurações', href: '/settings', icon: Settings },
-  { name: 'Ajuda', href: '/help', icon: HelpCircle },
 ];
 
 export function Sidebar() {
