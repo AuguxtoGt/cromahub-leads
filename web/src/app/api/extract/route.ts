@@ -32,6 +32,7 @@ export async function POST(req: Request) {
     let processedCount = 0;
     let apiCalls = 0;
     const insertedLeads = [];
+    const seenPlaceIds = new Set<string>();
     const TARGET_LEADS = 100;
     const MAX_API_CALLS = 30; // Aumentado para cobrir múltiplas zonas
     
@@ -110,6 +111,11 @@ export async function POST(req: Request) {
         // Processar e Salvar no Supabase
         for (const place of places) {
           if (processedCount >= TARGET_LEADS) break;
+
+          if (seenPlaceIds.has(place.id)) {
+            continue;
+          }
+          seenPlaceIds.add(place.id);
 
           let hasWebsite = !!place.websiteUri;
           
