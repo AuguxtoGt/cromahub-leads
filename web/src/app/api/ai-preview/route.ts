@@ -32,10 +32,9 @@ export async function POST(req: Request) {
 
     const { system_prompt, follow_up_prompt, follow_up_enabled, lead_name, offer_name, offer_price, offer_deadline, owner_name } = parsed.data;
 
-    // Saudação correta baseada no horário de Brasília para o preview ser realista
+    // Horário de Brasília para o preview ser realista
     const nowBR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     const hour = nowBR.getHours();
-    const saudacao = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 
     // Bloco de dados do vendedor — omite se vazio
     const vendedorLines = [
@@ -55,7 +54,6 @@ export async function POST(req: Request) {
 ${vendedorLines ? `\nDADOS DO VENDEDOR (QUEM ESTÁ ENVIANDO A MENSAGEM):\n${vendedorLines}` : ''}
 HORÁRIO ATUAL (BRASIL):
 - Hora atual: ${hour}h
-- Saudação OBRIGATÓRIA para usar no início da mensagem: "${saudacao}" (NÃO use outra saudação)
 ${ofertaLines ? `\nDADOS DA OFERTA (use se o seu system prompt instruir, caso contrário ignore):\n${ofertaLines}` : ''}
 Siga RIGOROSAMENTE as regras e restrições do seu System Prompt (especialmente sobre limite de tamanho e tom de voz).
 ${follow_up_enabled !== false ? `IMPORTANTE: Você deve retornar APENAS um objeto JSON com duas chaves exatas:
