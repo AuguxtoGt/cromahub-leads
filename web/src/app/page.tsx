@@ -640,25 +640,11 @@ export default function LeadsPage() {
                   <span>10 leads</span>
                   <span className="text-xs text-muted-foreground">{stats.novo >= 10 ? 10 : stats.novo} Disp.</span>
                 </button>
-                <button onClick={() => handleBatchGenerateIA('ALL', 'NEW')} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
-                  <span>Todos novos</span>
-                  <span className="text-xs text-muted-foreground">{stats.novo} Disp.</span>
-                </button>
-
-                <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 my-1 mt-2">Refazer Mensagens (Prontos/Enviados)</p>
-                <button onClick={() => handleBatchGenerateIA('ALL', 'READY')} className="w-full text-left px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 transition-colors flex justify-between items-center font-medium">
-                  <span>Refazer todos</span>
-                  <span className="text-xs text-purple-400">{stats.pronto + stats.enviado} Disp.</span>
-                </button>
 
                 <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 my-1 mt-2">Enfileirar Disparos</p>
                 <button onClick={() => handleBatchQueue(10)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
                   <span>10 leads</span>
                   <span className="text-xs text-muted-foreground">{stats.pronto >= 10 ? 10 : stats.pronto} Disp.</span>
-                </button>
-                <button onClick={() => handleBatchQueue('ALL')} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex justify-between items-center">
-                  <span>Todos prontos</span>
-                  <span className="text-xs text-muted-foreground">{stats.pronto} Disp.</span>
                 </button>
 
                 <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted/50 border-y border-border/50 my-1 mt-2">Gerenciamento de Fila</p>
