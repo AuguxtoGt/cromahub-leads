@@ -92,7 +92,7 @@ const NICHES = [
   }
 ];
 
-export function NichesModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+export function NichesModal({ isOpen, onClose, onSelectNiche }: { isOpen: boolean, onClose: () => void, onSelectNiche?: (niche: string) => void }) {
   const [searchTerm, setSearchTerm] = useState("");
 
   if (!isOpen) return null;
@@ -159,7 +159,11 @@ export function NichesModal({ isOpen, onClose }: { isOpen: boolean, onClose: () 
                   {filteredItems.map((item, i) => (
                     <div 
                       key={i} 
-                      className="px-3 py-2 bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-100 rounded-lg text-sm text-gray-700 hover:text-blue-700 transition-colors cursor-default flex items-center gap-2 group"
+                      onClick={() => {
+                        if (onSelectNiche) onSelectNiche(item);
+                        onClose();
+                      }}
+                      className="px-3 py-2 bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-100 rounded-lg text-sm text-gray-700 hover:text-blue-700 transition-colors cursor-pointer flex items-center gap-2 group"
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-blue-400 transition-colors shrink-0" />
                       {item}

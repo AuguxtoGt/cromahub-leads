@@ -171,6 +171,7 @@ export default function ExtractPage() {
       <NichesModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
+        onSelectNiche={(niche) => setKeyword(niche)}
       />
     </div>
   );
